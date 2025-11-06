@@ -1,0 +1,126 @@
+---
+export interface Props {
+  sections: Array<{ id: string; title: string }>;
+}
+
+const { sections } = Astro.props;
+---
+
+<aside
+  id="table-of-contents"
+  class="fixed right-8 top-24 z-40 hidden w-64 opacity-0 transition-opacity duration-300 lg:block"
+>
+  <nav
+    class="rounded-lg border border-nerfies-gray-200 bg-white/90 p-4 shadow-lg backdrop-blur-sm"
+  >
+    <div class="border-l-2 border-nerfies-gray-200 pl-4">
+      <h2
+        class="mb-4 text-sm font-semibold uppercase tracking-wider text-nerfies-gray-600"
+      >
+        Contents
+      </h2>
+      <ul class="space-y-2 text-sm">
+        {
+          sections.map((section) => (
+            <li>
+              <a
+                href={`#${section.id}`}
+                class="toc-link block py-1 text-nerfies-gray-600 transition-colors duration-200 hover:text-nerfies-primary"
+                data-section={section.id}
+              >
+                {section.title}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </nav>
+</aside>
+
+<script>
+  // Active section highlighting for TOC
+  const observerOptions = {
+    root: null,
+    rootMargin: "-20% 0px -70% 0px",
+    threshold: 0,
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        // Remove active class from all TOC links
+        document.querySelectorAll(".toc-link").forEach((link) => {
+          link.classList.remove("text-nerfies-primary", "font-medium");
+        });
+
+        // Add active class to current section link
+        const activeLink = document.querySelector(
+          `.toc-link[data-section="${entry.target.id}"]`
+        );
+        if (activeLink) {
+          activeLink.classList.add("text-nerfies-primary", "font-medium");
+        }
+      }
+    });
+  }, observerOptions);
+
+  // Observe all sections
+  document.querySelectorAll("section[id]").forEach((section) => {
+    observer.observe(section);
+  });
+
+  // Smooth scrolling for TOC links
+  document.querySelectorAll('.toc-link[href^="#"]').forEach((anchor) => {
+    anchor.addEventListener("click", (e) => {
+      e.preventDefault();
+      const href = (e.currentTarget as HTMLAnchorElement)?.getAttribute("href");
+      if (!href) return;
+      const target = document.querySelector(href);
+      if (target) {
+        target.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      }
+    });
+  });
+
+  // Show/hide TOC on scroll with auto-hide
+  const toc = document.getElementById("table-of-contents");
+  const scrollThreshold = 300; // Show TOC after scrolling 300px
+  const hideDelay = 2000; // Hide TOC after 2 seconds of no scrolling
+  let scrollTimeout: number;
+
+  function showTOC() {
+    if (!toc) return;
+    toc.classList.remove("opacity-0");
+    toc.classList.add("opacity-100");
+  }
+
+  function hideTOC() {
+    if (!toc) return;
+    toc.classList.remove("opacity-100");
+    toc.classList.add("opacity-0");
+  }
+
+  function handleScroll() {
+    // Only show TOC if scrolled past threshold
+    if (window.scrollY > scrollThreshold) {
+      showTOC();
+
+      // Clear existing timeout
+      clearTimeout(scrollTimeout);
+
+      // Set new timeout to hide TOC
+      scrollTimeout = window.setTimeout(() => {
+        hideTOC();
+      }, hideDelay);
+    } else {
+      hideTOC();
+    }
+  }
+
+  // Listen for scroll events
+  window.addEventListener("scroll", handleScroll, { passive: true });
+</script>

@@ -1,0 +1,337 @@
+---
+title: "Results"
+order: 3
+description: "Experimental results, success rates, and analysis"
+---
+
+import Figure from '../../components/Figure.astro';
+import VideoPlayer from '../../components/VideoPlayer.astro';
+import YouTubePlayer from '../../components/YouTubePlayer.astro';
+import Table from '../../components/Table.astro';
+
+## Results
+
+{/* TODO: Replace placeholder YouTube IDs with your actual demo videos */}
+
+### 🎬 Demo Videos
+
+Watch our VLA system successfully performing various manipulation tasks on the 3-DoF robotic arm:
+
+<div class="grid grid-cols-1 gap-6 my-8 md:grid-cols-2 lg:grid-cols-3">
+  <div>
+    <YouTubePlayer 
+      videoId="9bZkp7q19f0" 
+      caption="Pick and Place: 94.2% success rate"
+      autoplay={false}
+    />
+  </div>
+  <div>
+    <YouTubePlayer 
+      videoId="jNQXAC9IVRw" 
+      caption="Stack Blocks: 78.5% success rate"
+      autoplay={false}
+    />
+  </div>
+  <div>
+    <YouTubePlayer 
+      videoId="dQw4w9WgXcQ" 
+      caption="Push to Goal: 91.7% success rate"
+      autoplay={false}
+    />
+  </div>
+  <div>
+    <YouTubePlayer 
+      videoId="dQw4w9WgXcQ" 
+      caption="Open Drawer: 83.9% success rate"
+      autoplay={false}
+    />
+  </div>
+  <div>
+    <YouTubePlayer 
+      videoId="dQw4w9WgXcQ" 
+      caption="Pick by Color: 85.7% success rate"
+      autoplay={false}
+    />
+  </div>
+  <div>
+    <YouTubePlayer 
+      videoId="dQw4w9WgXcQ" 
+      caption="Grasp from Clutter: 76.8% success rate"
+      autoplay={false}
+    />
+  </div>
+</div>
+
+{/* Optional: Add a full demo compilation video */}
+<div class="my-8">
+  <YouTubePlayer 
+    videoId="dQw4w9WgXcQ" 
+    caption="Full Demo Compilation: All 12 tasks demonstrated in sequence with real-time execution"
+    autoplay={false}
+  />
+</div>
+
+We present comprehensive evaluation results across 12 manipulation tasks, including success rates, scaling analysis, failure taxonomy, and ablation studies focusing on VLA-specific design choices.
+
+{/* TODO: Replace all placeholder data with your actual experimental results */}
+
+### Closed-Loop Success Rates
+
+We evaluate our method on 12 manipulation tasks with 30 independent trials per task (N=30, 360 total rollouts). All trials start from consistent initial states with randomized object positions (±3cm) and orientations (±30°).
+
+*Table 6: Per-task success rates with 95% confidence intervals (Wilson score intervals). Success criteria are task-specific (see Experimental Setup section). Our method achieves 85.3% average success rate.*
+
+| Task ID | Task Name | Success Rate | N | Task Definition |
+|---------|-----------|--------------|---|-----------------|
+| T1 | Pick and Place | 94.2% ± 4.8% | 30 | Cube in target zone (±2cm) |
+| T2 | Stack Blocks | 78.5% ± 8.1% | 30 | Top block stable for 3s |
+| T3 | Push to Goal | 91.7% ± 5.4% | 30 | Object in target (±3cm) |
+| T4 | Open Drawer | 83.9% ± 7.2% | 30 | Drawer open &gt;8cm |
+| T5 | Close Drawer | 88.2% ± 6.3% | 30 | Drawer closed (&lt;1cm) |
+| T6 | Press Button | 96.8% ± 3.5% | 30 | Button pressed (visual detect) |
+| T7 | Pick by Color | 85.7% ± 6.9% | 30 | Correct colored object grasped |
+| T8 | Sort Objects | 72.3% ± 8.8% | 30 | All objects in correct bins |
+| T9 | Reorient Object | 81.4% ± 7.6% | 30 | Object upright (±15°) |
+| T10 | Slide Object | 89.6% ± 6.0% | 30 | Object moved &gt;10cm |
+| T11 | Grasp from Clutter | 76.8% ± 8.3% | 30 | Target object extracted |
+| T12 | Follow Trajectory | 84.5% ± 7.1% | 30 | End-effector within 2cm |
+| **Average** | **All Tasks** | **85.3% ± 3.2%** | 360 | Weighted average |
+
+**Key Observations:**
+- Simple primitives (T1, T3, T6, T10) achieve &gt;90% success
+- Multi-step tasks (T2, T8, T11) are more challenging (72-78%)
+- Average success of 85.3% demonstrates robust performance
+- Confidence intervals indicate stable, reproducible performance
+
+<Figure 
+  src="/images/train-loss.svg" 
+  caption="Figure 8: Per-task success rates across all 12 manipulation tasks. Error bars show 95% confidence intervals. Simpler primitive tasks (blue bars) achieve higher success than complex multi-step tasks (orange bars)."
+  alt="Per-task success rate bar chart"
+/>
+
+{/* TODO: Create actual success rate visualization */}
+
+### Scaling Curves
+
+We analyze how performance scales with training data and fine-tuning steps.
+
+#### Data Efficiency
+
+*Table 7: Success rate vs. number of on-robot training episodes. Our approach reaches 85% success with just 50 episodes per task, demonstrating strong sample efficiency.*
+
+{/* TODO: Fill in actual scaling data */}
+
+| Episodes/Task | Avg Success Rate | Training Time | Total Episodes |
+|---------------|------------------|---------------|----------------|
+| 5 | 34.5% ± 9.2% | 0.25 hrs | 60 |
+| 10 | 52.8% ± 8.1% | 0.5 hrs | 120 |
+| 20 | 68.3% ± 6.5% | 1.0 hrs | 240 |
+| 30 | 76.2% ± 5.3% | 1.5 hrs | 360 |
+| 40 | 81.5% ± 4.2% | 2.0 hrs | 480 |
+| **50** | **85.3% ± 3.2%** | **2.5 hrs** | **600** |
+| 70 | 87.1% ± 3.8% | 3.5 hrs | 840 |
+| 100 | 88.2% ± 3.5% | 5.0 hrs | 1200 |
+
+**Insights:**
+- Strong pre-training enables 52.8% success with only 10 episodes
+- Diminishing returns after 50 episodes (marginal gain of 2.9pp from 50→100)
+- Our selected budget of 50 episodes balances performance and efficiency
+
+<Figure 
+  src="/images/run01-epoch.svg" 
+  caption="Figure 9: Data scaling curve showing success rate vs. number of training episodes per task. The model quickly improves with initial data and plateaus around 50 episodes, demonstrating efficient use of pre-training."
+  alt="Data scaling curve"
+/>
+
+{/* TODO: Replace with actual scaling curve */}
+
+#### Fine-Tuning Steps
+
+*Table 8: Success rate vs. PPO fine-tuning steps. Performance stabilizes after ~1000 steps per task.*
+
+{/* TODO: Add actual fine-tuning curve data */}
+
+| Fine-Tune Steps | Success Rate | Wall-Clock Time |
+|-----------------|--------------|-----------------|
+| 0 (Zero-shot) | 34.2% ± 8.5% | 0 hrs |
+| 250 | 58.7% ± 7.8% | 0.6 hrs |
+| 500 | 72.4% ± 6.2% | 1.2 hrs |
+| **1000** | **85.3% ± 3.2%** | **2.5 hrs** |
+| 2000 | 86.1% ± 3.6% | 5.0 hrs |
+
+**Observation:** 1000 steps provides optimal performance-time trade-off.
+
+### Real-World Failure Analysis
+
+We analyze 562 failure cases collected during evaluation and additional stress testing. Understanding failure modes is critical for improving robustness.
+
+#### Failure Taxonomy
+
+See detailed breakdown in the Limitations section. Key failure types:
+
+1. **Perception Errors (28.3%):** Lighting changes, occlusion, misclassification
+2. **Grasp Failures (24.5%):** Slippage, poor approach angles, drops
+3. **Planning Errors (18.7%):** Collisions, inefficient paths, local minima
+4. **Timeout (15.9%):** Slow execution, hesitation
+5. **Instruction Errors (8.2%):** Wrong object, goal misinterpretation
+6. **Hardware (4.4%):** Motor stalls, communication issues
+
+<Figure 
+  src="/images/grad-norm.svg" 
+  caption="Figure 10: Failure mode distribution across 562 failure cases. Perception and grasp failures account for over 50% of errors, suggesting future work on multi-modal sensing and grasp planning."
+  alt="Failure mode pie chart"
+/>
+
+{/* TODO: Create failure mode visualization */}
+
+#### Representative Failure Examples
+
+{/* TODO: Add actual failure case videos */}
+
+**Success Case: Pick and Place**
+<YouTubePlayer 
+  videoId="9bZkp7q19f0" 
+  caption="Success: Clean pick and place execution with stable grasp and precise placement"
+  autoplay={false}
+/>
+
+**Failure Case 1: Grasp Slippage**
+<YouTubePlayer 
+  videoId="jNQXAC9IVRw" 
+  caption="Failure: Object slips from gripper during transport due to smooth surface (metallic cup)"
+  autoplay={false}
+/>
+
+**Failure Case 2: Occlusion Error**
+<YouTubePlayer 
+  videoId="dQw4w9WgXcQ" 
+  caption="Failure: Perception error when target object partially occluded by workspace clutter"
+  autoplay={false}
+/>
+
+**Failure Case 3: Timeout**
+<YouTubePlayer 
+  videoId="dQw4w9WgXcQ" 
+  caption="Failure: Robot exhibits hesitation behavior, repeatedly adjusting without committing to grasp, leading to 60s timeout"
+  autoplay={false}
+/>
+
+### VLA-Specific Ablations
+
+We conduct ablation studies on design choices specific to vision-language-action models.
+
+#### Ablation 1: Instruction Format
+
+*Table 9: Impact of instruction formatting on success rate. Natural language outperforms template-based and code-like formats.*
+
+{/* TODO: Add actual ablation results */}
+
+| Instruction Format | Example | Success Rate | $\Delta$ |
+|-------------------|---------|--------------|----------|
+| **Natural Language (Ours)** | "Pick up the red block" | **85.3%** | Baseline |
+| Template-Based | "PICK(red, block)" | 76.8% | -8.5pp |
+| Code-Like | `pick(color='red', obj='block')` | 71.2% | -14.1pp |
+| Telegraphic | "red block pick" | 69.5% | -15.8pp |
+
+**Insight:** Pre-trained VLAs benefit from natural, grammatical instructions that match pre-training data distribution.
+
+#### Ablation 2: Visual Backbone
+
+*Table 10: Comparison of different visual encoders. CLIP ViT-B/16 provides best balance of performance and efficiency.*
+
+{/* TODO: Add actual ablation data */}
+
+| Visual Backbone | Params | Inference (ms) | Success Rate | $\Delta$ |
+|-----------------|--------|----------------|--------------|----------|
+| **CLIP ViT-B/16 (Ours)** | 86M | 48 | **85.3%** | Baseline |
+| ResNet-50 | 25M | 22 | 78.2% | -7.1pp |
+| ViT-L/14 | 307M | 156 | 86.1% | +0.8pp |
+| DINOv2 ViT-B/14 | 86M | 52 | 83.7% | -1.6pp |
+| EfficientNet-B4 | 19M | 18 | 74.5% | -10.8pp |
+
+**Insight:** CLIP's vision-language alignment from pre-training provides crucial semantic understanding. Larger ViT-L offers minimal gains at 3.25× latency cost.
+
+#### Ablation 3: Action Parameterization
+
+*Table 11: Effect of action representation on task success. Joint velocities outperform end-effector control for our 3-DoF setup.*
+
+{/* TODO: Add actual action space ablation */}
+
+| Action Space | Dimensions | Success Rate | $\Delta$ |
+|--------------|------------|--------------|----------|
+| **Joint Velocities (Ours)** | 3 | **85.3%** | Baseline |
+| Joint Positions | 3 | 81.7% | -3.6pp |
+| End-Effector Velocity | 3 (x, y, z) | 77.4% | -7.9pp |
+| End-Effector Pose | 6 (redundant) | 68.2% | -17.1pp |
+| Hybrid (Pos + Vel) | 6 | 83.5% | -1.8pp |
+
+**Insight:** Direct joint velocity control avoids IK ambiguities and provides smoother motion for low-DoF systems.
+
+#### Ablation 4: Amount of On-Robot Fine-Tuning
+
+*Table 12: Comparison of fine-tuning strategies. PPO with 50 episodes significantly outperforms zero-shot and behavior cloning.*
+
+{/* TODO: Fill in actual fine-tuning comparison */}
+
+| Fine-Tuning Method | Data | Success Rate | $\Delta$ |
+|-------------------|------|--------------|----------|
+| Zero-Shot (No FT) | 0 eps | 34.2% | -51.1pp |
+| BC (10 demos) | 10 eps | 58.3% | -27.0pp |
+| BC (30 demos) | 30 eps | 68.7% | -16.6pp |
+| **PPO (Ours)** | **50 eps** | **85.3%** | **Baseline** |
+| BC (50 demos) | 50 eps | 72.3% | -13.0pp |
+| PPO (100 eps) | 100 eps | 88.2% | +2.9pp |
+
+**Insight:** RL-based fine-tuning handles distribution shift better than pure imitation. Returns diminish beyond 50 episodes.
+
+#### Ablation 5: LoRA Rank for Adaptation
+
+*Table 13: Effect of LoRA rank on adaptation quality. Rank-16 balances expressiveness and regularization.*
+
+{/* TODO: Add LoRA rank ablation */}
+
+| LoRA Rank | Trainable Params | Success Rate | Training Time | $\Delta$ |
+|-----------|------------------|--------------|---------------|----------|
+| No LoRA (Full FT) | 850M | 82.1% | 6.5 hrs | -3.2pp |
+| Rank 4 | 5.5M | 79.8% | 2.2 hrs | -5.5pp |
+| Rank 8 | 11M | 83.2% | 2.3 hrs | -2.1pp |
+| **Rank 16 (Ours)** | **22M** | **85.3%** | **2.5 hrs** | **Baseline** |
+| Rank 32 | 44M | 85.7% | 3.1 hrs | +0.4pp |
+| Rank 64 | 88M | 85.9% | 4.8 hrs | +0.6pp |
+
+**Insight:** Rank-16 provides sufficient capacity for embodiment adaptation while maintaining training efficiency. Higher ranks yield diminishing returns.
+
+### Generalization Results
+
+We evaluate generalization across several axes:
+
+*Table 14: Out-of-distribution generalization performance. Model maintains 78.6% success on held-out variations.*
+
+{/* TODO: Add OOD evaluation results */}
+
+| Generalization Axis | Test Condition | Success Rate | vs In-Dist |
+|--------------------|----------------|--------------|------------|
+| In-Distribution | Standard test set | 85.3% | Baseline |
+| **Novel Objects** | 5 unseen categories | 42.3% ± 8.7% | -43.0pp |
+| **Instruction Paraphrasing** | 5 rephrasings/task | 78.6% ± 4.1% | -6.7pp |
+| **Lighting Variation** | Low/high/side light | 53.2% - 81.4% | -4.0pp avg |
+| **Position Randomization** | ±5cm (vs ±3cm) | 76.2% ± 5.3% | -9.1pp |
+| **Zero-Shot Composition** | Task combinations | 62.3% ± 5.8% | -23.0pp |
+
+**Key Findings:**
+- Strong generalization to instruction variations (only -6.7pp drop)
+- Moderate robustness to lighting and position changes
+- Significant challenge with novel object categories and task compositions
+- Results highlight importance of diverse pre-training data
+
+### Summary of Key Results
+
+1. **High Success Rate:** 85.3% average across 12 diverse manipulation tasks
+2. **Sample Efficient:** Achieves strong performance with just 50 episodes/task
+3. **Robust to Variations:** 78.6% success on held-out instruction phrasings
+4. **Fast Inference:** 48ms model inference, 94ms end-to-end latency
+5. **VLA Design Matters:** Natural language instructions and CLIP visual backbone critical for performance
+6. **Failure Modes Understood:** 562 failures analyzed with clear taxonomy
+
+These results demonstrate that combining pre-trained VLA models with targeted on-robot RL fine-tuning enables effective manipulation on low-cost hardware.
+

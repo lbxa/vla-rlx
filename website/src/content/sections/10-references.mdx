@@ -1,0 +1,212 @@
+---
+title: "References"
+order: 10
+description: "Citations, acknowledgments, and changelog"
+---
+
+import BibTeXWidget from '../../components/BibTeXWidget.astro';
+import LinkButton from '../../components/LinkButton.astro';
+
+## Citation
+
+If you find this work useful for your research, please cite:
+
+{/* TODO: Update BibTeX entry with your actual paper information */}
+<BibTeXWidget entry={`@article{yourname2024vla3dof,
+  title={Vision-Language-Action Model for Low-Cost Robotic Manipulation},
+  author={First Author and Second Author and Third Author},
+  journal={arXiv preprint arXiv:XXXX.XXXXX},
+  year={2024},
+  url={https://vla.lbxa.net},
+  note={Accepted at Conference/Workshop Name (if applicable)}
+}`} />
+
+<div class="flex flex-wrap gap-4 my-6">
+  <LinkButton href="https://arxiv.org/abs/XXXX.XXXXX" type="arxiv">
+    📄 arXiv Paper
+  </LinkButton>
+  <LinkButton href="https://github.com/your-username/your-repo" type="github">
+    💻 GitHub Code
+  </LinkButton>
+  <LinkButton href="https://huggingface.co/datasets/your-dataset" type="huggingface">
+    📊 Dataset
+  </LinkButton>
+</div>
+
+---
+
+## References
+
+### Foundation Models & Pre-training
+
+1. **OpenVLA:** Open-source vision-language-action model providing our pre-trained backbone.  
+   Kim et al. *"OpenVLA: An Open-Source Vision-Language-Action Model."* arXiv 2024.  
+   [https://openvla.github.io](https://openvla.github.io)
+
+2. **RT-2:** Robotics Transformer demonstrating vision-language-action at scale.  
+   Brohan et al. *"RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control."* CoRL 2023.  
+   [https://robotics-transformer2.github.io](https://robotics-transformer2.github.io)
+
+3. **Open-X-Embodiment:** Large-scale dataset enabling cross-embodiment pre-training.  
+   Open X-Embodiment Collaboration. *"Open X-Embodiment: Robotic Learning Datasets and RT-X Models."* arXiv 2023.
+
+### Reinforcement Learning
+
+4. **PPO:** Proximal Policy Optimization algorithm used for fine-tuning.  
+   Schulman et al. *"Proximal Policy Optimization Algorithms."* arXiv 2017.
+
+5. **LoRA:** Low-rank adaptation technique for efficient fine-tuning.  
+   Hu et al. *"LoRA: Low-Rank Adaptation of Large Language Models."* ICLR 2022.
+
+### Vision-Language Models
+
+6. **CLIP:** Contrastive language-image pre-training for our visual backbone.  
+   Radford et al. *"Learning Transferable Visual Models From Natural Language Supervision."* ICML 2021.
+
+7. **Sentence-BERT:** Efficient sentence embeddings for instruction encoding.  
+   Reimers and Gurevych. *"Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks."* EMNLP 2019.
+
+### Robotics & Manipulation
+
+8. **Robotic Grasping:** Foundational work on learning-based grasp detection.  
+   Mahler et al. *"Dex-Net 2.0: Deep Learning to Plan Robust Grasps."* RSS 2017.
+
+9. **Low-Cost Robotics:** Prior work on affordable manipulation platforms.  
+   Zeng et al. *"Robotic Pick-and-Place of Novel Objects in Clutter."* ICRA 2018.
+
+### Responsible AI & Documentation
+
+10. **Model Cards:** Framework guiding our model documentation.  
+    Mitchell et al. *"Model Cards for Model Reporting."* FAT* 2019.  
+    [https://arxiv.org/abs/1810.03993](https://arxiv.org/abs/1810.03993)
+
+11. **Data Cards (Datasheets):** Framework for dataset documentation.  
+    Gebru et al. *"Datasheets for Datasets."* CACM 2021.  
+    [https://arxiv.org/abs/1803.09010](https://arxiv.org/abs/1803.09010)
+
+### Related VLA Work
+
+12. **RT-1:** Early vision-language-action work demonstrating end-to-end learning.  
+    Brohan et al. *"RT-1: Robotics Transformer for Real-World Control at Scale."* arXiv 2022.
+
+13. **PaLM-E:** Embodied multimodal language models for robotics.  
+    Driess et al. *"PaLM-E: An Embodied Multimodal Language Model."* ICML 2023.
+
+14. **GR00T:** Vision-language-action model with generalist capabilities.  
+    NVIDIA. *"Project GR00T: Foundation Model for Humanoid Robots."* 2024.
+
+{/* TODO: Add any additional references specific to your work */}
+
+---
+
+## Acknowledgments
+
+{/* TODO: Update with your actual acknowledgments */}
+
+We thank the following individuals and organizations for their contributions to this work:
+
+**Collaborators & Advisors:**
+- Prof. [Advisor Name] for guidance and feedback throughout the project
+- [Collaborator Names] for insightful discussions and technical support
+
+**Infrastructure & Resources:**
+- [Your Institution] for providing compute resources and lab space
+- [Lab/Group Name] for access to robotic hardware and testing facilities
+
+**Open Source Community:**
+- OpenVLA team for open-sourcing their foundation model
+- PyTorch and Hugging Face teams for excellent ML tooling
+- ROS2 community for robotics middleware
+
+**Funding:**
+- [Grant/Funding Agency] under grant number [XXXXX]
+- [Additional funding sources]
+
+**Code & Templates:**
+- Website template adapted from [Nerfies](https://nerfies.github.io), [Jon Barron](https://jonbarron.info), and [Keunhong Park](https://keunhong.com)
+- Experimental design inspired by [RT-2](https://robotics-transformer2.github.io) and [OpenVLA](https://openvla.github.io) project pages
+
+**Reviewers:**
+- Anonymous reviewers for valuable feedback that improved this work
+
+{/* TODO: Add specific names and affiliations */}
+
+---
+
+## Changelog
+
+We maintain a public changelog to document updates, improvements, and bug fixes.
+
+### Version 1.0.0 — November 2024
+
+**Initial Release:**
+- First public release of code, models, and dataset
+- 12 manipulation tasks with baseline evaluations
+- Comprehensive documentation and reproducibility resources
+
+### Future Updates
+
+**Planned for v1.1:**
+- Improved grasp detection module
+- Additional task evaluations
+- Extended failure analysis
+
+**Planned for v2.0:**
+- Multi-modal sensing integration (tactile + vision)
+- Uncertainty quantification
+- 6-DoF arm support
+- Expanded dataset with 20+ tasks
+
+**Stay Updated:**
+- **GitHub Releases:** Watch our [GitHub repository](https://github.com/your-username/your-repo/releases) for new versions
+- **arXiv Updates:** Check for revised versions on [arXiv](https://arxiv.org/abs/XXXX.XXXXX)
+- **Project Website:** This page will be updated with new results and resources
+
+{/* TODO: Update changelog dates and version numbers */}
+
+---
+
+## Contact
+
+**Questions or Issues?**
+
+- **Email:** first.author@university.edu
+- **GitHub Issues:** [github.com/your-repo/issues](https://github.com/your-repo/issues)
+- **Twitter/X:** [@your_handle](https://twitter.com/your_handle) (if applicable)
+- **Website:** [https://vla.lbxa.net](https://vla.lbxa.net)
+
+We welcome feedback, bug reports, and collaboration inquiries!
+
+---
+
+## License
+
+{/* TODO: Specify your actual licenses */}
+
+**Code:** MIT License — See [LICENSE](https://github.com/your-repo/LICENSE) file for details
+
+**Dataset:** Creative Commons Attribution 4.0 (CC BY 4.0) — See [dataset README](https://github.com/your-repo/data/README.md)
+
+**Website Content:** Creative Commons Attribution-ShareAlike 4.0 (CC BY-SA 4.0)
+
+**Model Weights:** MIT License (inherits from OpenVLA and our fine-tuning contributions)
+
+---
+
+<div class="mt-12 rounded-lg border-2 border-nerfies-gray-200 bg-nerfies-gray-50 p-6 text-center">
+  <p class="text-lg font-semibold text-nerfies-gray-700">
+    Thank you for your interest in our work!
+  </p>
+  <p class="mt-2 text-nerfies-gray-600">
+    If you use this work, please cite the paper above. We'd love to hear about your applications and extensions.
+  </p>
+  <div class="mt-4 flex flex-wrap justify-center gap-3">
+    <LinkButton href="https://github.com/your-username/your-repo" type="github">
+      ⭐ Star on GitHub
+    </LinkButton>
+    <LinkButton href="https://twitter.com/intent/tweet?text=Check%20out%20this%20VLA%20research&url=https://vla.lbxa.net" type="other">
+      🐦 Share on Twitter
+    </LinkButton>
+  </div>
+</div>
+

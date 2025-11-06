@@ -1,0 +1,134 @@
+---
+title: "Comparisons"
+order: 5
+description: "Baseline comparisons and benchmarking"
+---
+
+import Figure from '../../components/Figure.astro';
+import Table from '../../components/Table.astro';
+
+## Comparisons with Baselines
+
+We compare our approach against established baselines in vision-language-action models and robotic manipulation. We carefully normalize evaluation conditions and account for embodiment differences to ensure fair comparison.
+
+### Baseline Methods
+
+{/* TODO: Update with your actual baseline comparisons */}
+
+We evaluate against the following methods:
+
+1. **OpenVLA (Zero-Shot):** Pre-trained OpenVLA model without any fine-tuning, directly applied to our 3-DoF embodiment
+2. **OpenVLA + BC:** OpenVLA fine-tuned with behavioral cloning on 50 teleoperated demonstrations per task
+3. **RT-2-X (Adapted):** RT-2 architecture adapted to our embodiment with same training data
+4. **From-Scratch RL:** PPO policy trained from scratch (no pre-training) with same on-robot budget
+5. **BC-Only Baseline:** Pure behavioral cloning on expert demonstrations without RL fine-tuning
+6. **Ours (VLA + PPO):** Our complete approach with OpenVLA pre-training + PPO fine-tuning
+
+### Main Results Comparison
+
+*Table 3: Success rates across all 12 tasks. Our method combines the best of pre-trained VLAs with on-robot RL fine-tuning. All methods use identical hardware, evaluation protocols, and test conditions. Bold indicates best performance, underline indicates second-best.*
+
+| Method | Avg Success ↑ | Sample Efficiency | Inference Time | Generalization |
+|--------|--------------|------------------|----------------|----------------|
+| OpenVLA (Zero-Shot) | 34.2% ± 8.5% | 0 episodes | 48ms | 41.2% |
+| From-Scratch RL | 52.8% ± 7.3% | 50 eps/task | 12ms | 38.5% |
+| BC-Only Baseline | 61.5% ± 6.8% | 50 eps/task | 38ms | 47.3% |
+| OpenVLA + BC | 72.3% ± 5.4% | 50 eps/task | 48ms | 65.8% |
+| RT-2-X (Adapted) | 76.1% ± 5.1% | 50 eps/task | 92ms | 68.2% |
+| **Ours (VLA + PPO)** | **85.3% ± 3.2%** | 50 eps/task | 48ms | **78.6%** |
+
+{/* TODO: Replace with your actual comparison results */}
+
+**Key Observations:**
+
+- **Pre-training matters:** Zero-shot OpenVLA (34.2%) significantly outperforms random policy, demonstrating knowledge transfer despite embodiment mismatch
+- **RL > BC for adaptation:** Our PPO fine-tuning (+13.0pp over OpenVLA+BC) better handles distribution shift than pure imitation
+- **Sample efficiency:** Ours achieves 85.3% with same 50-episode budget that gives From-Scratch RL only 52.8% (1.6× improvement)
+- **Generalization gap:** Our method maintains 78.6% success on out-of-distribution tests vs 68.2% for RT-2-X (representing 10.4pp better robustness)
+
+<Figure 
+  src="/images/train-loss.svg" 
+  caption="Figure 7: Success rate comparison across baseline methods for all 12 tasks. Our approach (blue) consistently outperforms alternatives, with particularly strong gains on complex multi-step tasks (T2, T8, T11)."
+  alt="Baseline comparison bar chart"
+/>
+
+{/* TODO: Create and add actual comparison figure */}
+
+### Per-Task Breakdown
+
+*Table 4: Detailed per-task success rates for key methods. Our approach shows consistent improvements across task types, with largest gains on manipulation tasks requiring precise control and generalization.*
+
+{/* TODO: Fill in actual per-task numbers */}
+
+| Task | Ours | OpenVLA+BC | RT-2-X | From-Scratch |
+|------|------|------------|--------|--------------|
+| T1: Pick & Place | 94.2% | 86.3% | 88.1% | 68.5% |
+| T2: Stack Blocks | 78.5% | 64.2% | 71.3% | 42.8% |
+| T3: Push to Goal | 91.7% | 83.9% | 85.2% | 71.3% |
+| T4: Open Drawer | 83.9% | 72.6% | 76.8% | 54.2% |
+| T5: Close Drawer | 88.2% | 78.4% | 81.5% | 62.7% |
+| T6: Press Button | 96.8% | 91.2% | 93.4% | 78.9% |
+| T7: Pick by Color | 85.7% | 71.5% | 73.2% | 48.6% |
+| T8: Sort Objects | 72.3% | 58.9% | 64.7% | 35.4% |
+| T9: Reorient | 81.4% | 69.8% | 72.6% | 51.8% |
+| T10: Slide Object | 89.6% | 80.3% | 82.9% | 69.4% |
+| T11: Grasp Clutter | 76.8% | 62.1% | 68.5% | 41.2% |
+| T12: Follow Path | 84.5% | 73.2% | 75.9% | 58.7% |
+| **Average** | **85.3%** | **74.4%** | **77.8%** | **56.9%** |
+
+### Embodiment Mismatch Analysis
+
+**Important Note on Fair Comparison:**
+
+The baseline VLA models (OpenVLA, RT-2) were originally trained on different robot embodiments:
+- **Original training:** 6-7 DoF arms (e.g., Franka Emika, WidowX)
+- **Our platform:** 3 DoF custom arm
+- **Action space mismatch:** We add a learned projection layer to map VLA outputs to our action space
+
+To ensure fair comparison:
+- All methods use the **same projection layer architecture**
+- All methods trained on **identical on-robot data** (50 episodes/task)
+- All methods evaluated under **identical test conditions**
+- We report both adapted pre-trained models and from-scratch baselines
+
+The gap between OpenVLA (zero-shot 34.2%) and OpenVLA+BC (72.3%) demonstrates this embodiment adaptation challenge, which our PPO approach addresses more effectively.
+
+### Statistical Significance
+
+{/* TODO: Add actual statistical test results */}
+
+We perform pairwise significance testing between our method and each baseline:
+
+- **Ours vs OpenVLA+BC:** p < 0.001 (t=4.83, Bonferroni-corrected)
+- **Ours vs RT-2-X:** p = 0.003 (t=3.21, Bonferroni-corrected)
+- **Ours vs From-Scratch:** p < 0.001 (t=7.92, Bonferroni-corrected)
+
+All improvements are statistically significant at α=0.05 level after correction for multiple comparisons.
+
+### Computational Cost Comparison
+
+*Table 5: Training cost comparison across methods. Our approach achieves best performance with moderate computational requirements.*
+
+{/* TODO: Update with actual computational costs */}
+
+| Method | Training GPU-hrs | Robot Time (hrs) | Inference (ms) | Model Size (MB) |
+|--------|-----------------|------------------|----------------|-----------------|
+| From-Scratch RL | 2.5 | 2.5 | 12 | 45 |
+| BC-Only | 1.2 | 2.5 | 38 | 180 |
+| OpenVLA + BC | 3.8 | 2.5 | 48 | 850 |
+| RT-2-X (Adapted) | 5.2 | 2.5 | 92 | 1200 |
+| **Ours** | **4.5** | **2.5** | **48** | **850** |
+
+Our method achieves the best performance with competitive computational costs, demonstrating practical efficiency.
+
+### Limitations of Comparisons
+
+**Acknowledged Limitations:**
+
+1. **Embodiment domain gap:** Pre-trained models face inherent disadvantage due to 3-DoF vs 6-DoF training data
+2. **Dataset diversity:** OpenVLA and RT-2 saw more diverse objects/scenes during pre-training than available in our lab setup
+3. **Hyperparameter tuning:** Baseline methods may benefit from embodiment-specific hyperparameter optimization we did not perform
+4. **Evaluation budget:** 30 trials per task may not fully capture performance variance in complex multi-step tasks
+
+Despite these limitations, consistent improvements across all tasks and statistical significance support our method's advantages.
+

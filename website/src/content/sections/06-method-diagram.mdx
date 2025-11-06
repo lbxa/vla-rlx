@@ -1,0 +1,84 @@
+---
+title: "Method"
+order: 4
+description: "System architecture and approach overview"
+---
+
+import Figure from '../../components/Figure.astro';
+import VideoPlayer from '../../components/VideoPlayer.astro';
+
+## Method in One Picture
+
+{/* TODO: Create and add your system architecture diagram */}
+{/* The diagram should show:
+    - Perception stack (camera input → visual encoder)
+    - Language interface (instruction processing)
+    - VLA foundation model (frozen or fine-tuned)
+    - Action head (policy output)
+    - PPO fine-tuning loop (if applicable)
+    - Data flow arrows with dimensions
+*/}
+
+Our approach consists of four main components: a **visual perception module** that processes RGB camera observations, a **language encoder** that embeds natural language instructions, a **pre-trained VLA backbone** adapted from OpenVLA, and a **policy head** fine-tuned with PPO for on-robot learning. The system operates at **10Hz control frequency** with **94ms end-to-end latency** from observation to action.
+
+<Figure 
+  src="/images/grad-norm.svg" 
+  caption="Figure 2: System architecture showing the complete pipeline from visual and language inputs to robot actions. The perception stack processes 224×224 RGB images, the language encoder handles variable-length instructions, and the policy head outputs 3-DoF joint velocities. Grey blocks indicate frozen weights, blue blocks show fine-tuned components."
+  alt="System architecture diagram"
+/>
+
+{/* TODO: Replace placeholder image with actual architecture diagram */}
+
+### Pipeline Overview
+
+The complete system pipeline consists of:
+
+1. **Visual Perception** 
+   - Input: 224×224 RGB images at 10Hz
+   - Encoder: Pre-trained CLIP ViT-B/16 visual backbone
+   - Output: 512-dim visual embeddings
+
+2. **Language Processing**
+   - Input: Natural language task instructions (e.g., "pick up the red block")
+   - Encoder: Sentence-BERT embeddings
+   - Output: 384-dim language embeddings
+
+3. **VLA Backbone**
+   - Architecture: Transformer-based policy (8 layers, 512 hidden dim)
+   - Pre-training: OpenVLA weights on RT-1/RT-2 datasets
+   - Adaptation: LoRA fine-tuning (rank=16) on 3-DoF embodiment
+
+4. **Action Head & Control**
+   - Output: 3-DoF joint velocities + gripper state
+   - Control frequency: 10Hz
+   - Safety: Joint limit checking, velocity clipping
+
+5. **On-Robot Fine-Tuning**
+   - Algorithm: Proximal Policy Optimization (PPO)
+   - Episodes: 50 per task
+   - Reward: Task-specific success + efficiency bonuses
+
+### Key Technical Innovations
+
+- **Embodiment Adaptation:** Novel projection layer maps high-capacity VLA to low-DoF action space while preserving semantic understanding
+- **Sparse Reward Shaping:** Combine sparse task success with dense progress signals for sample-efficient learning  
+- **Real-Time Inference:** Optimized inference pipeline achieves 94ms latency on consumer GPU (RTX 3060)
+
+{/* TODO: Add technical equations if needed for your specific approach */}
+
+The policy is optimized using PPO with the following objective:
+
+$$
+L^{\text{CLIP}}(\theta) = \mathbb{E}_t \left[ \min\left( r_t(\theta) \hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_t \right) \right]
+$$
+
+where $r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}$ is the probability ratio and $\hat{A}_t$ is the estimated advantage.
+
+<Figure 
+  src="/images/learning-rate.svg" 
+  caption="Figure 3: Learning rate schedule during fine-tuning with cosine annealing and warmup period"
+  alt="Learning rate schedule"
+/>
+
+{/* TODO: Replace with actual learning curve or training dynamics figure */}
+

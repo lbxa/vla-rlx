@@ -3,7 +3,7 @@ import { Icon } from 'astro-icon/components';
 
 export interface Props {
   href: string;
-  type: 'arxiv' | 'github' | 'huggingface' | 'website' | 'dataset';
+  type: 'arxiv' | 'github' | 'huggingface' | 'website' | 'dataset' | 'other';
   class?: string;
 }
 
@@ -14,7 +14,8 @@ const buttonStyles = {
   github: "text-nerfies-gray-800 hover:text-nerfies-gray-900", 
   huggingface: "text-yellow-600 hover:text-yellow-700",
   website: "text-nerfies-primary hover:text-nerfies-primary-hover",
-  dataset: "text-purple-600 hover:text-purple-700"
+  dataset: "text-purple-600 hover:text-purple-700",
+  other: "text-nerfies-primary hover:text-nerfies-primary-hover"
 };
 
 const iconNames = {
@@ -22,7 +23,8 @@ const iconNames = {
   github: "mdi:github",
   huggingface: "hf",
   website: "mdi:web",
-  dataset: "mdi:database"
+  dataset: "mdi:database",
+  other: "mdi:link-variant"
 };
 ---
 

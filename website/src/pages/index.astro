@@ -1,47 +1,67 @@
 ---
-import { getCollection } from 'astro:content';
-import ResearchLayout from '../layouts/ResearchLayout.astro';
-import SectionContainer from '../components/SectionContainer.astro';
+import { getCollection } from "astro:content";
+import ResearchLayout from "../layouts/ResearchLayout.astro";
+import SectionContainer from "../components/SectionContainer.astro";
+import TableOfContents from "../components/TableOfContents.astro";
 
 // Get all sections and sort by order
-const allSections = await getCollection('sections');
-const sortedSections = allSections.slice().sort((a, b) => a.data.order - b.data.order);
+const allSections = await getCollection("sections");
+const sortedSections = allSections
+  .slice()
+  .sort((a, b) => a.data.order - b.data.order);
 
 // Map section filenames to IDs for navigation
 const SECTION_IDS = {
-  '01-hero': 'hero',
-  '02-abstract': 'abstract', 
-  '03-introduction': 'introduction',
-  '04-methodology': 'methodology',
-  '05-experiments': 'experiments',
-  '06-discussion': 'discussion',
-  '07-conclusion': 'conclusion',
-  '08-references': 'references'
+  "01-hero": "hero",
+  "02-abstract": "abstract",
+  "03-results": "results",
+  "04-comparisons": "comparisons",
+  "05-limitations": "limitations",
+  "06-method-diagram": "method",
+  "07-experimental-setup": "setup",
+  "08-cards": "cards",
+  "09-reproducibility": "reproducibility",
+  "10-references": "references",
 } as const;
 
 // Pre-render all sections
 const renderedSections = await Promise.all(
   sortedSections.map(async (section) => {
     const { Content } = await section.render();
-    const sectionId = SECTION_IDS[section.slug as keyof typeof SECTION_IDS] || section.slug;
+    const sectionId =
+      SECTION_IDS[section.slug as keyof typeof SECTION_IDS] || section.slug;
     return {
       id: sectionId,
       title: section.data.title,
       Content,
-      isHero: sectionId === 'hero'
+      isHero: sectionId === "hero",
     };
   })
 );
+
+// Extract section data for TOC
+const tocSections = renderedSections.map((section) => ({
+  id: section.id,
+  title: section.title,
+}));
 ---
 
-<ResearchLayout title="Research Paper" description="Academic research presentation">
-  {renderedSections.map((section) => (
-    <SectionContainer 
-      id={section.id} 
-      title={section.title}
-      class={section.isHero ? 'pt-xl' : ''}
-    >
-      <section.Content />
-    </SectionContainer>
-  ))}
+<ResearchLayout
+  title="Research Paper"
+  description="Academic research presentation"
+>
+  {
+    renderedSections.map((section) => (
+      <SectionContainer
+        id={section.id}
+        title={section.title}
+        class={section.isHero ? "pt-xl" : ""}
+      >
+        <section.Content />
+      </SectionContainer>
+    ))
+  }
+
+  <!-- Floating TOC (desktop only) -->
+  <!-- <TableOfContents sections={tocSections} /> -->
 </ResearchLayout>

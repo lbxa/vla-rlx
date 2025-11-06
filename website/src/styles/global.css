@@ -17,6 +17,7 @@
 /* Prevent horizontal overflow on mobile */
 html {
   overflow-x: hidden;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -83,6 +84,179 @@ html.dark .astro-code span {
   .table-wrapper {
     @apply overflow-x-auto -mx-4 sm:mx-0;
   }
+}
+
+/* ===== Typography Improvements for Best-in-Class Readability ===== */
+
+/* Optimal line length for readability: 70-80 characters */
+.prose {
+  max-width: 75ch;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Improve paragraph readability */
+.prose p {
+  max-width: 75ch;
+  text-align: left;
+}
+
+/* Enhanced figure caption styling */
+.prose figure {
+  margin: 2rem 0;
+}
+
+.prose figcaption {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #6B7280;
+  font-style: italic;
+  text-align: left;
+  max-width: 75ch;
+}
+
+.prose figcaption strong {
+  font-weight: 600;
+  color: #374151;
+  font-style: normal;
+}
+
+/* Consistent heading hierarchy */
+.prose h1 {
+  margin-top: 2.5rem;
+  margin-bottom: 1.25rem;
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.prose h2 {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+.prose h3 {
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.prose h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Changelog styling */
+.prose h3 + p em,
+.prose h3 + ul {
+  color: #6B7280;
+}
+
+/* Changelog date/version headings */
+.prose h3:has(+ p > em) {
+  color: #3273dc;
+  border-left: 4px solid #3273dc;
+  padding-left: 1rem;
+}
+
+/* Changelog version blocks */
+.prose h3[id^="version"] {
+  background: linear-gradient(to right, #EFF6FF, transparent);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border-left: 4px solid #3273dc;
+  border-bottom: none;
+}
+
+/* Model/Data card sections */
+.prose .card-section {
+  background: #F9FAFB;
+  border-left: 4px solid #3273dc;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  border-radius: 0.5rem;
+}
+
+/* Better spacing for lists in prose */
+.prose ul,
+.prose ol {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.prose li {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose li > p {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Code blocks in lists */
+.prose li > pre {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Better table styling */
+.prose table {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.prose thead th {
+  font-weight: 600;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background: #F3F4F6;
+  border-bottom: 2px solid #D1D5DB;
+}
+
+.prose tbody td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.prose tbody tr:last-child td {
+  border-bottom: 2px solid #D1D5DB;
+}
+
+/* Highlight important rows (e.g., "Ours" in comparison tables) */
+.prose tbody tr:has(td > strong:first-child) {
+  background: #FEF3C7;
+  font-weight: 500;
+}
+
+/* Horizontal rules for section breaks */
+.prose hr {
+  margin: 2.5rem 0;
+  border: 0;
+  border-top: 2px solid #E5E7EB;
+}
+
+/* Emphasized text blocks */
+.prose blockquote {
+  border-left: 4px solid #3273dc;
+  padding-left: 1.5rem;
+  margin: 1.5rem 0;
+  font-style: italic;
+  color: #4B5563;
+  background: #F9FAFB;
+  padding: 1rem 1.5rem;
+  border-radius: 0.25rem;
 }
 
 /* Heading anchor styles - global to ensure proper loading */

@@ -5,9 +5,19 @@ import Nav from '../components/Nav.astro';
 export interface Props {
   title?: string;
   description?: string;
+  image?: string;
+  author?: string;
 }
 
-const { title = "Research Paper", description = "Academic research presentation" } = Astro.props;
+const { 
+  title = "Vision-Language-Action Model Research", 
+  description = "A VLA+RL system that teaches a low-cost 3-DoF arm new tasks from sparse on-robot data.",
+  image = "/images/hero-thumbnail.jpg",
+  author = "VLA Research Team"
+} = Astro.props;
+
+const siteUrl = "https://vla.lbxa.net";
+const fullImageUrl = `${siteUrl}${image}`;
 ---
 
 <!doctype html>
@@ -18,7 +28,24 @@ const { title = "Research Paper", description = "Academic research presentation"
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
+    <meta name="author" content={author} />
     <title>{title}</title>
+    
+    <!-- OpenGraph Meta Tags -->
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={fullImageUrl} />
+    <meta property="og:url" content={siteUrl} />
+    <meta property="og:site_name" content={title} />
+    <meta property="article:author" content={author} />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={fullImageUrl} />
+    <meta name="twitter:creator" content={author} />
     
     <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
@@ -30,6 +57,24 @@ const { title = "Research Paper", description = "Academic research presentation"
     <!-- KaTeX CSS for math rendering -->
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.15.2/dist/katex.min.css" as="style" onload="this.onload=null;this.rel='stylesheet';" />
     <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.2/dist/katex.min.css" /></noscript>
+    
+    <!-- Structured Data (JSON-LD) for Research Paper -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "ScholarlyArticle",
+      "headline": title,
+      "description": description,
+      "author": {
+        "@type": "Person",
+        "name": author
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "VLA Research"
+      },
+      "url": siteUrl,
+      "datePublished": new Date().toISOString().split('T')[0]
+    })} />
   </head>
   <body class="bg-white font-noto-sans leading-relaxed text-nerfies-gray-700">
     <Nav />

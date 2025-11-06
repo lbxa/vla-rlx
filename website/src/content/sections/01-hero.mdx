@@ -11,39 +11,61 @@ import LinkButton from '../../components/LinkButton.astro';
 
 <div class="text-center">
 
-# Your Research Paper Title Here
+{/* TODO: Replace with your actual paper title */}
+# Vision-Language-Action Model for Low-Cost Robotic Manipulation
 
-**Authors:** Your Name¹, Co-Author Name², Another Author³
+{/* TODO: Add your actual authors and affiliations */}
+**Authors:** First Author¹, Second Author², Third Author³
 
 **Affiliations:**  
-¹ Your University, Department  
-² Co-author Institution  
-³ Another Institution  
+¹ Your University, Department of Robotics  
+² Co-author Institution, AI Lab  
+³ Another Institution, Computer Science  
 
-**Contact:** your.email@university.edu
+**Contact:** first.author@university.edu
 
-<div class="flex flex-wrap justify-center gap-4 mt-6">
-  <LinkButton href="https://arxiv.org/abs/your-paper-id" type="arxiv">
-    arXiv
+{/* One-liner summary */}
+<p class="mx-auto mt-4 max-w-3xl text-lg text-nerfies-gray-600">
+A VLA+RL system that teaches a low-cost 3-DoF robotic arm to perform complex manipulation tasks from sparse on-robot demonstrations and natural language instructions.
+</p>
+
+{/* TODO: Update all links with your actual URLs */}
+<div class="flex flex-wrap justify-center gap-4 mt-8">
+  <LinkButton href="https://arxiv.org/abs/XXXX.XXXXX" type="arxiv">
+    Paper
   </LinkButton>
   <LinkButton href="https://github.com/your-username/your-repo" type="github">
     Code
   </LinkButton>
   <LinkButton href="https://huggingface.co/datasets/your-dataset" type="huggingface">
-    Dataset
+    Data
+  </LinkButton>
+  <LinkButton href="#reproducibility" type="github">
+    Demo
+  </LinkButton>
+  <LinkButton href="#references" type="other">
+    BibTeX
   </LinkButton>
 </div>
 
 </div>
 
----
-
-## TL;DR
-
-A brief 2-3 sentence summary of your research contribution that can be easily copy-pasted from your Notion notes.
-
+{/* TODO: Replace with your actual hero video - either YouTube or local video */}
+{/* Option 1: YouTube video */}
+<div class="mt-12">
 <YouTubePlayer 
   videoId="dQw4w9WgXcQ" 
-  caption="Demo video showcasing the main results of your research"
+  caption="15-second highlight reel demonstrating key capabilities of our VLA system on the 3-DoF robotic arm"
   autoplay={false}
 />
+</div>
+
+{/* Option 2: Local video - uncomment and update path if using local video
+<div class="mt-12">
+<VideoPlayer 
+  src="/videos/hero-demo.mp4" 
+  caption="15-second highlight reel demonstrating key capabilities of our VLA system"
+  autoplay={false}
+/>
+</div>
+*/}

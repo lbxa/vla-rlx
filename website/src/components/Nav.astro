@@ -1,104 +1,70 @@
 ---
-import NavLink from './NavLink.astro';
+import NavLink from "./NavLink.astro";
 
 const navItems = [
-  { href: "#hero", label: "Title" },
+  { href: "#hero", label: "Home" },
   { href: "#abstract", label: "Abstract" },
-  { href: "#introduction", label: "Introduction" },
-  { href: "#methodology", label: "Methodology" },
-  { href: "#experiments", label: "Results" },
-  { href: "#discussion", label: "Discussion" },
-  { href: "#conclusion", label: "Conclusion" },
-  { href: "#references", label: "References" }
+  { href: "#results", label: "Results" },
+  { href: "#method", label: "Method" },
+  { href: "#comparisons", label: "Comparisons" },
+  { href: "#limitations", label: "Limitations" },
+  { href: "#setup", label: "Setup" },
+  { href: "#cards", label: "Cards" },
+  { href: "#reproducibility", label: "Reproducibility" },
+  { href: "#references", label: "References" },
 ];
 ---
 
-<nav class="fixed inset-x-0 top-0 z-50 border-b border-nerfies-gray-200 bg-white/80 backdrop-blur-sm">
+<nav
+  class="fixed inset-x-0 top-0 z-50 border-b border-nerfies-gray-200 bg-white/80 backdrop-blur-sm"
+>
   <div class="mx-auto max-w-4xl px-lg py-md">
     <div class="flex items-center justify-between">
-      <NavLink href="#hero" class="font-mono text-lg font-semibold">
-        Research Paper
-      </NavLink>
-      
       <!-- Desktop navigation -->
       <div class="hidden space-x-lg text-sm md:flex">
-        {navItems.map(item => (
-          <NavLink href={item.href}>
-            {item.label}
-          </NavLink>
-        ))}
+        {
+          navItems.map((item) => (
+            <NavLink href={item.href}>{item.label}</NavLink>
+          ))
+        }
       </div>
-      
+
       <!-- Mobile menu button -->
       <button id="mobile-menu-button" class="p-sm md:hidden">
-        <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        <svg
+          class="size-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 6h16M4 12h16M4 18h16"></path>
         </svg>
       </button>
     </div>
-    
+
     <!-- Mobile menu -->
     <div id="mobile-menu" class="mt-md hidden space-y-sm text-sm md:hidden">
-      {navItems.map(item => (
-        <NavLink href={item.href} mobile={true}>
-          {item.label}
-        </NavLink>
-      ))}
+      {
+        navItems.map((item) => (
+          <NavLink href={item.href} mobile={true}>
+            {item.label}
+          </NavLink>
+        ))
+      }
     </div>
   </div>
 </nav>
 
 <script>
   // Mobile menu toggle
-  document.getElementById('mobile-menu-button')?.addEventListener('click', () => {
-    const menu = document.getElementById('mobile-menu');
-    menu?.classList.toggle('hidden');
-  });
-
-  // Smooth scrolling for navigation links
-  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', (e) => {
-      e.preventDefault();
-      const href = (e.currentTarget as HTMLAnchorElement)?.getAttribute('href');
-      if (!href) return;
-      const target = document.querySelector(href);
-      if (target) {
-        target.scrollIntoView({
-          behavior: 'smooth',
-          block: 'nearest'
-        });
-        // Close mobile menu if open
-        document.getElementById('mobile-menu')?.classList.add('hidden');
-      }
+  document
+    .getElementById("mobile-menu-button")
+    ?.addEventListener("click", () => {
+      const menu = document.getElementById("mobile-menu");
+      menu?.classList.toggle("hidden");
     });
-  });
-
-  // Active section highlighting
-  const observerOptions = {
-    root: null,
-    rootMargin: '-20% 0px -70% 0px',
-    threshold: 0
-  };
-
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        // Remove active class from all nav links
-        document.querySelectorAll('nav a').forEach(link => {
-          link.classList.remove('text-nerfies-primary', 'font-medium');
-        });
-        
-        // Add active class to current section link
-        const activeLink = document.querySelector(`nav a[href="#${entry.target.id}"]`);
-        if (activeLink) {
-          activeLink.classList.add('text-nerfies-primary', 'font-medium');
-        }
-      }
-    });
-  }, observerOptions);
-
-  // Observe all sections
-  document.querySelectorAll('section[id]').forEach(section => {
-    observer.observe(section);
-  });
 </script>

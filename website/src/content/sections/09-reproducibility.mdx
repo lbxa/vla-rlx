@@ -1,0 +1,417 @@
+---
+title: "Reproducibility"
+order: 9
+description: "Code, data, and instructions for reproducing results"
+---
+
+import LinkButton from '../../components/LinkButton.astro';
+import Figure from '../../components/Figure.astro';
+
+## Reproducibility
+
+We provide comprehensive resources to reproduce our results, from hardware assembly to model training. Our goal is to make this research accessible and reproducible for the broader community.
+
+{/* TODO: Update all links and instructions with your actual reproduction materials */}
+
+---
+
+### Quick Start: Run in 15 Minutes
+
+Get our model running on your machine or in simulation:
+
+<div class="flex flex-wrap gap-4 my-6">
+  <LinkButton href="https://colab.research.google.com/drive/YOUR_COLAB_ID" type="other">
+    🚀 Google Colab Demo
+  </LinkButton>
+  <LinkButton href="https://github.com/your-username/your-repo#quickstart" type="github">
+    💻 Local Quickstart
+  </LinkButton>
+  <LinkButton href="https://huggingface.co/spaces/your-space" type="huggingface">
+    🤗 HF Spaces Demo
+  </LinkButton>
+</div>
+
+**Colab Notebook Features:**
+- Pre-loaded model weights
+- Interactive visualization
+- Simulated robot environment
+- Zero installation required
+- Free GPU available
+
+**Expected Time:** 10-15 minutes to run inference on sample tasks
+
+---
+
+### Full Reproducibility Guide
+
+#### 1. Hardware Setup
+
+**Bill of Materials (BOM):**
+
+{/* TODO: Add actual BOM with purchase links */}
+
+| Component | Quantity | Cost (USD) | Supplier Link |
+|-----------|----------|------------|---------------|
+| Dynamixel XL430-W250-T Motor | 3 | $150 | [Robotis](https://www.robotis.us) |
+| U2D2 USB Interface | 1 | $35 | [Robotis](https://www.robotis.us) |
+| Parallel Jaw Gripper Kit | 1 | $45 | [Robotis](https://www.robotis.us) |
+| Intel RealSense D435i | 1 | $200 | [Intel](https://www.intelrealsense.com) |
+| Custom 3D Printed Parts | 1 set | $15 | See STL files below |
+| Cables & Connectors | 1 set | $20 | See BOM spreadsheet |
+| Mounting Hardware | 1 set | $10 | M3/M4 screws, standoffs |
+| **Total** | - | **~$475** | - |
+
+**Note:** Price assumes access to 3D printer. Add ~$50 if ordering printed parts.
+
+<div class="flex flex-wrap gap-4 my-6">
+  <LinkButton href="https://github.com/your-repo/hardware/BOM.csv" type="github">
+    📋 Detailed BOM (CSV)
+  </LinkButton>
+  <LinkButton href="https://github.com/your-repo/hardware/assembly.pdf" type="github">
+    🔧 Assembly Instructions (PDF)
+  </LinkButton>
+  <LinkButton href="https://github.com/your-repo/hardware/cad" type="github">
+    📐 CAD Files & STLs
+  </LinkButton>
+</div>
+
+**Assembly Time:** 4-6 hours for first-time builders
+
+#### 2. Software Environment
+
+**System Requirements:**
+- **OS:** Ubuntu 22.04 LTS (recommended) or Ubuntu 20.04
+- **GPU:** NVIDIA GPU with 12GB+ VRAM (RTX 3060 or better)
+- **RAM:** 32GB recommended (16GB minimum)
+- **Storage:** 100GB free space
+- **Python:** 3.10 or 3.11
+
+**Option A: Docker (Recommended)**
+
+```bash
+# Pull pre-built Docker image
+docker pull your-dockerhub/vla-3dof:latest
+
+# Run container with GPU support
+docker run --gpus all -it \
+  --name vla-3dof \
+  -v $(pwd)/data:/workspace/data \
+  -v $(pwd)/logs:/workspace/logs \
+  your-dockerhub/vla-3dof:latest
+
+# Inside container, verify installation
+python -c "import torch; print(torch.cuda.is_available())"
+```
+
+<div class="flex flex-wrap gap-4 my-6">
+  <LinkButton href="https://hub.docker.com/r/your-dockerhub/vla-3dof" type="other">
+    🐳 Docker Hub
+  </LinkButton>
+  <LinkButton href="https://github.com/your-repo/docker/Dockerfile" type="github">
+    📄 Dockerfile
+  </LinkButton>
+</div>
+
+**Option B: Conda Environment**
+
+```bash
+# Clone repository
+git clone https://github.com/your-username/your-repo.git
+cd your-repo
+
+# Create conda environment
+conda env create -f environment.yml
+conda activate vla-3dof
+
+# Install package in development mode
+pip install -e .
+
+# Verify installation
+python scripts/verify_setup.py
+```
+
+<div class="flex flex-wrap gap-4 my-6">
+  <LinkButton href="https://github.com/your-repo/environment.yml" type="github">
+    📦 environment.yml
+  </LinkButton>
+  <LinkButton href="https://github.com/your-repo/requirements.txt" type="github">
+    📋 requirements.txt
+  </LinkButton>
+</div>
+
+**Key Dependencies:**
+- PyTorch 2.1.0
+- OpenVLA 0.2.0
+- ROS2 Humble
+- OpenCV 4.8.0
+- Transformers 4.35.0
+
+#### 3. Download Pretrained Weights & Data
+
+**Model Checkpoints:**
+
+```bash
+# Download pretrained VLA backbone
+wget https://huggingface.co/your-org/vla-3dof/resolve/main/vla_backbone.pth
+
+# Download fine-tuned task-specific weights
+wget https://huggingface.co/your-org/vla-3dof/resolve/main/task_checkpoints.tar.gz
+tar -xzf task_checkpoints.tar.gz
+
+# Verify checksums
+sha256sum -c checksums.txt
+```
+
+**Training Data:**
+
+```bash
+# Download full training dataset (12 GB)
+wget https://zenodo.org/record/YOUR_RECORD/files/vla_3dof_data.tar.gz
+
+# Or download small demo dataset (500 MB) for testing
+wget https://zenodo.org/record/YOUR_RECORD/files/vla_3dof_demo.tar.gz
+```
+
+<div class="flex flex-wrap gap-4 my-6">
+  <LinkButton href="https://huggingface.co/your-org/vla-3dof" type="huggingface">
+    🤗 Model Hub
+  </LinkButton>
+  <LinkButton href="https://zenodo.org/record/YOUR_RECORD" type="other">
+    📊 Zenodo Dataset
+  </LinkButton>
+</div>
+
+#### 4. Reproduce Main Results
+
+**Run Evaluation on Pre-trained Model:**
+
+```bash
+# Evaluate on all 12 tasks (requires real robot)
+python scripts/evaluate.py \
+  --checkpoint task_checkpoints/all_tasks.pth \
+  --tasks all \
+  --num_trials 30 \
+  --save_videos
+
+# Results will be saved to results/evaluation_{timestamp}/
+```
+
+**Simulated Evaluation (No Robot Required):**
+
+```bash
+# Run in PyBullet simulation
+python scripts/evaluate_sim.py \
+  --checkpoint task_checkpoints/all_tasks.pth \
+  --tasks all \
+  --num_trials 100 \
+  --render
+
+# Note: Sim results will differ from real-world due to sim2real gap
+```
+
+**Expected Output:**
+- Success rate per task
+- Average episode length
+- Failure mode breakdown
+- Video recordings of rollouts
+- CSV file with detailed metrics
+
+#### 5. Retrain from Scratch
+
+**Fine-tune on Your Own Data:**
+
+```bash
+# Collect teleoperation data
+python scripts/collect_data.py \
+  --task pick_and_place \
+  --num_episodes 50 \
+  --controller gamepad
+
+# Fine-tune with PPO
+python scripts/train.py \
+  --config configs/ppo_finetune.yaml \
+  --data_path data/pick_and_place \
+  --output_dir checkpoints/pick_and_place \
+  --gpu 0
+
+# Monitor training with Weights & Biases
+# Training link will be printed to console
+```
+
+**Training Time:** ~3-4 hours per task on RTX 3060
+
+**Hyperparameters:** See `configs/ppo_finetune.yaml` for exact settings used in paper.
+
+<div class="flex flex-wrap gap-4 my-6">
+  <LinkButton href="https://github.com/your-repo/configs/" type="github">
+    ⚙️ Config Files
+  </LinkButton>
+  <LinkButton href="https://wandb.ai/your-org/vla-3dof" type="other">
+    📈 W&B Logs
+  </LinkButton>
+</div>
+
+#### 6. Exact Commit for Paper Results
+
+All results in the paper were generated using:
+
+**Repository State:**
+```bash
+git clone https://github.com/your-username/your-repo.git
+cd your-repo
+git checkout v1.0.0  # Tagged release for paper
+```
+
+<div class="my-6 rounded-lg border-2 border-nerfies-primary bg-blue-50 p-4">
+  <p class="font-semibold text-nerfies-primary">📌 Paper Results Commit</p>
+  <p class="mt-2 font-mono text-sm">
+    <strong>Commit:</strong> <code>abc123def456</code><br/>
+    <strong>Tag:</strong> <code>v1.0.0</code><br/>
+    <strong>Date:</strong> 2024-11-15<br/>
+    <strong>Branch:</strong> <code>main</code>
+  </p>
+</div>
+
+**Seeds for Reproducibility:**
+- Random seed: 42
+- NumPy seed: 42
+- PyTorch seed: 42
+- Environment seed: 1337
+
+Set via: `python scripts/set_seeds.py --seed 42`
+
+---
+
+### Simulation-Only Option
+
+Don't have the robot hardware? Try our simulation setup:
+
+```bash
+# Install PyBullet simulation
+pip install pybullet>=3.2.5
+
+# Launch simulated robot
+python scripts/sim_robot.py --gui
+
+# Run simulated tasks
+python scripts/evaluate_sim.py --checkpoint path/to/checkpoint.pth
+```
+
+**Limitations:** Simulation results show ~15-20pp higher success rates due to idealized physics and sensing. Useful for algorithm development but not for final evaluation.
+
+<div class="flex flex-wrap gap-4 my-6">
+  <LinkButton href="https://github.com/your-repo/simulation/" type="github">
+    🎮 Simulation Code
+  </LinkButton>
+</div>
+
+---
+
+### Interactive Notebooks
+
+Explore our methods interactively:
+
+**Available Notebooks:**
+
+1. **`01_quickstart.ipynb`** - Load model and run inference
+2. **`02_data_exploration.ipynb`** - Visualize training data
+3. **`03_training_curves.ipynb`** - Reproduce paper plots
+4. **`04_ablation_analysis.ipynb`** - Interactive ablation studies
+5. **`05_failure_analysis.ipynb`** - Analyze failure modes
+
+<div class="flex flex-wrap gap-4 my-6">
+  <LinkButton href="https://github.com/your-repo/notebooks/" type="github">
+    📓 Jupyter Notebooks
+  </LinkButton>
+  <LinkButton href="https://colab.research.google.com/github/your-repo/notebooks/" type="other">
+    ☁️ Open in Colab
+  </LinkButton>
+</div>
+
+---
+
+### Troubleshooting
+
+**Common Issues:**
+
+**1. CUDA Out of Memory**
+```bash
+# Reduce batch size in config
+sed -i 's/batch_size: 32/batch_size: 16/' configs/ppo_finetune.yaml
+
+# Or use gradient accumulation
+python scripts/train.py --config configs/ppo_finetune.yaml --accumulation_steps 2
+```
+
+**2. Camera Not Detected**
+```bash
+# Check RealSense connection
+rs-enumerate-devices
+
+# If not found, reinstall librealsense
+./scripts/install_realsense.sh
+```
+
+**3. Motor Communication Errors**
+```bash
+# Check USB permissions
+sudo usermod -a -G dialout $USER
+# Log out and back in
+
+# Verify motor connection
+python scripts/test_motors.py
+```
+
+**4. Different Results from Paper**
+- Verify you're using commit `v1.0.0`
+- Check that seeds are set correctly
+- Ensure same PyTorch/CUDA versions
+- Small variations (±2-3%) are expected
+
+**More Help:**
+- **GitHub Issues:** Report problems at [github.com/your-repo/issues](https://github.com/your-repo/issues)
+- **Documentation:** Full docs at [your-repo.readthedocs.io](https://your-repo.readthedocs.io)
+- **Email:** Contact authors at first.author@university.edu
+
+---
+
+### Citation & Acknowledgments
+
+If you use this code or data, please cite:
+
+```bibtex
+@article{yourname2024vla3dof,
+  title={Vision-Language-Action Model for Low-Cost Robotic Manipulation},
+  author={Your Name and Co-Author Name},
+  journal={arXiv preprint arXiv:XXXX.XXXXX},
+  year={2024}
+}
+```
+
+See the [References](#references) section below for the complete BibTeX entry.
+
+---
+
+### Community Contributions
+
+We welcome contributions! See our [Contributing Guide](https://github.com/your-repo/CONTRIBUTING.md).
+
+**Ways to Contribute:**
+- 🐛 Report bugs or issues
+- 📝 Improve documentation
+- 🎨 Add visualizations
+- 🔧 Fix bugs or optimize code
+- 🚀 Extend to new tasks or robots
+- 📊 Share your results
+
+<div class="flex flex-wrap gap-4 my-6">
+  <LinkButton href="https://github.com/your-repo/CONTRIBUTING.md" type="github">
+    🤝 Contributing Guide
+  </LinkButton>
+  <LinkButton href="https://github.com/your-repo/issues/new/choose" type="github">
+    🐛 Report Issue
+  </LinkButton>
+</div>
+
+{/* TODO: Update all links, commands, and instructions with your actual setup */}
+

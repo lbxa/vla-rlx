@@ -60,7 +60,7 @@ const config = {
               fontFamily: '"Google Sans", system-ui, sans-serif',
             },
             code: {
-              color: '#1f2937',
+              color: '#757575',
               backgroundColor: '#f5f5f5',
               paddingLeft: '0.5rem',
               paddingRight: '0.5rem',
