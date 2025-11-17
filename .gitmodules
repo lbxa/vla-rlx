@@ -1,0 +1,6 @@
+[submodule "gr00t"]
+	path = gr00t
+	url = https://github.com/lbxa/gr00t
+[submodule "lerobot"]
+	path = lerobot
+	url = https://github.com/lbxa/lerobot
