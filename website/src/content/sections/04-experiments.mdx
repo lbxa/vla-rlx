@@ -1,0 +1,66 @@
+---
+title: "Comparisons"
+order: 5
+description: "Baseline comparisons and benchmarking"
+---
+
+import Figure from '../../components/Figure.astro';
+import VideoPlayer from '../../components/VideoPlayer.astro';
+import YouTubePlayer from '../../components/YouTubePlayer.astro';
+import Table from '../../components/Table.astro';
+
+## Demos
+
+<div class="grid grid-cols-1 gap-6 my-8 md:grid-cols-2 lg:grid-cols-3">
+  <div>
+    <YouTubePlayer 
+      videoId="9bZkp7q19f0" 
+      caption="Pick and Place: 94.2% success rate"
+      autoplay={false}
+    />
+  </div>
+  <div>
+    <YouTubePlayer 
+      videoId="jNQXAC9IVRw" 
+      caption="Stack Blocks: 78.5% success rate"
+      autoplay={false}
+    />
+  </div>
+  <div>
+    <YouTubePlayer 
+      videoId="dQw4w9WgXcQ" 
+      caption="Push to Goal: 91.7% success rate"
+      autoplay={false}
+    />
+  </div>
+  <div>
+    <YouTubePlayer 
+      videoId="dQw4w9WgXcQ" 
+      caption="Open Drawer: 83.9% success rate"
+      autoplay={false}
+    />
+  </div>
+  <div>
+    <YouTubePlayer 
+      videoId="dQw4w9WgXcQ" 
+      caption="Pick by Color: 85.7% success rate"
+      autoplay={false}
+    />
+  </div>
+  <div>
+    <YouTubePlayer 
+      videoId="dQw4w9WgXcQ" 
+      caption="Grasp from Clutter: 76.8% success rate"
+      autoplay={false}
+    />
+  </div>
+</div>
+
+{/* Optional: Add a full demo compilation video */}
+<div class="my-8">
+  <YouTubePlayer 
+    videoId="dQw4w9WgXcQ" 
+    caption="Full Demo Compilation: All 12 tasks demonstrated in sequence with real-time execution"
+    autoplay={false}
+  />
+</div>

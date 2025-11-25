@@ -1,0 +1,280 @@
+---
+/**
+ * VideoGrid Component
+ * Displays videos from Cloudflare R2 bucket in a 2x6 grid with hover-to-play functionality
+ */
+
+export interface Props {
+  /**
+   * List of video filenames in the R2 bucket's Demos folder
+   * Example: ["video1.mp4", "video2.mp4", ...]
+   */
+  videoFiles?: string[];
+  
+  /**
+   * Optional title for the video grid section
+   */
+  title?: string;
+  
+  /**
+   * Custom CSS class for the container
+   */
+  class?: string;
+}
+
+const { 
+  videoFiles = [],
+  title,
+  class: className = ""
+} = Astro.props;
+
+// ============================================================
+// 🔧 CONFIGURATION REQUIRED - Insert your R2 bucket URL here
+// ============================================================
+// Get the R2 bucket URL from environment variables
+// To set this up:
+// 1. Copy website/.env.example to website/.env
+// 2. Replace [INSERT_YOUR_R2_BUCKET_URL_HERE] with your actual R2 public URL
+// Example: https://pub-1234567890abcdef.r2.dev
+const R2_BUCKET_URL = import.meta.env.PUBLIC_R2_BUCKET_URL || "[INSERT_YOUR_R2_BUCKET_URL_HERE]";
+const R2_FOLDER = "Demos"; // Folder in your R2 bucket containing videos
+
+// Default video files if none provided (you can customize this list)
+const defaultVideoFiles = [
+  "demo1.mp4",
+  "demo2.mp4",
+  "demo3.mp4",
+  "demo4.mp4",
+  "demo5.mp4",
+  "demo6.mp4",
+  "demo7.mp4",
+  "demo8.mp4",
+  "demo9.mp4",
+  "demo10.mp4",
+  "demo11.mp4",
+  "demo12.mp4"
+];
+
+const videos = videoFiles.length > 0 ? videoFiles : defaultVideoFiles;
+
+// Construct full video URLs
+const videoUrls = videos.map(filename => ({
+  url: `${R2_BUCKET_URL}/${R2_FOLDER}/${filename}`,
+  filename: filename,
+  id: filename.replace(/\.[^/.]+$/, "") // Remove extension for ID
+}));
+---
+
+<section class={`video-grid-section ${className}`}>
+  {title && (
+    <h2 class="mb-8 text-center text-3xl font-bold text-gray-900">
+      {title}
+    </h2>
+  )}
+  
+  <div class="video-grid grid grid-cols-1 gap-6 md:grid-cols-2">
+    {videoUrls.map((video, index) => (
+      <div 
+        class="video-item group relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50 shadow-sm transition-all hover:shadow-lg"
+        data-video-index={index}
+      >
+        <div class="relative aspect-video">
+          <video 
+            id={`grid-video-${video.id}-${index}`}
+            class="video-element size-full object-cover"
+            src={video.url}
+            muted
+            loop
+            playsinline
+            preload="metadata"
+          >
+            Your browser does not support the video tag.
+          </video>
+          
+          <!-- Loading indicator -->
+          <div class="loading-indicator absolute inset-0 flex items-center justify-center bg-gray-100">
+            <div class="flex flex-col items-center gap-2">
+              <div class="size-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+              <span class="text-sm text-gray-600">Loading...</span>
+            </div>
+          </div>
+          
+          <!-- Play indicator overlay -->
+          <div class="play-indicator absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 transition-all group-hover:bg-opacity-10">
+            <svg 
+              class="size-16 text-white opacity-0 transition-opacity group-hover:opacity-70" 
+              fill="currentColor" 
+              viewBox="0 0 20 20"
+            >
+              <path 
+                fill-rule="evenodd" 
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" 
+                clip-rule="evenodd"
+              />
+            </svg>
+          </div>
+        </div>
+        
+        <!-- Optional: Video filename display -->
+        <div class="video-info p-3 text-center">
+          <span class="text-xs text-gray-600">{video.filename}</span>
+        </div>
+      </div>
+    ))}
+  </div>
+  
+  <!-- Error message if R2 bucket not configured -->
+  {R2_BUCKET_URL.includes("[INSERT_YOUR_R2_BUCKET_URL_HERE]") && (
+    <div class="mt-6 rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
+      <div class="flex items-start">
+        <svg class="mt-0.5 size-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+        </svg>
+        <div class="ml-3">
+          <h3 class="text-sm font-medium text-yellow-800">Configuration Required</h3>
+          <p class="mt-1 text-sm text-yellow-700">
+            Please configure your R2 bucket URL in <code class="rounded bg-yellow-100 px-1 py-0.5">.env</code> file. 
+            See <code class="rounded bg-yellow-100 px-1 py-0.5">R2_SETUP.md</code> for instructions.
+          </p>
+        </div>
+      </div>
+    </div>
+  )}
+</section>
+
+<style>
+  .video-grid-section {
+    margin: 2rem auto;
+    max-width: 1200px;
+    padding: 0 1rem;
+  }
+  
+  .video-item {
+    position: relative;
+  }
+  
+  .video-element {
+    display: block;
+  }
+  
+  /* Hide loading indicator once video is loaded */
+  .video-element.loaded + .loading-indicator {
+    display: none;
+  }
+  
+  /* Hide play indicator when video is playing */
+  .video-item.playing .play-indicator {
+    opacity: 0;
+    pointer-events: none;
+  }
+  
+  /* Smooth transitions */
+  .video-element {
+    transition: transform 0.3s ease;
+  }
+  
+  .video-item:hover .video-element {
+    transform: scale(1.02);
+  }
+  
+  @media (max-width: 768px) {
+    .video-grid {
+      gap: 1rem;
+    }
+    
+    .video-info {
+      font-size: 0.75rem;
+    }
+  }
+</style>
+
+<script>
+  // Hover-to-play functionality with IntersectionObserver for performance
+  document.addEventListener('DOMContentLoaded', () => {
+    const videoItems = document.querySelectorAll('.video-item');
+    
+    // IntersectionObserver to only enable hover on visible videos
+    const observerOptions = {
+      root: null,
+      rootMargin: '50px',
+      threshold: 0.1
+    };
+    
+    const videoObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const videoItem = entry.target as HTMLElement;
+        const video = videoItem.querySelector('video') as HTMLVideoElement;
+        
+        if (entry.isIntersecting) {
+          // Video is in viewport, enable hover functionality
+          video.preload = 'auto';
+          videoItem.setAttribute('data-visible', 'true');
+        } else {
+          // Video is out of viewport, pause and disable hover
+          video.pause();
+          videoItem.setAttribute('data-visible', 'false');
+          videoItem.classList.remove('playing');
+        }
+      });
+    }, observerOptions);
+    
+    videoItems.forEach((item) => {
+      const video = item.querySelector('video') as HTMLVideoElement;
+      const loadingIndicator = item.querySelector('.loading-indicator') as HTMLElement;
+      
+      if (!video) return;
+      
+      // Observe video for viewport visibility
+      videoObserver.observe(item);
+      
+      // Hide loading indicator when video is ready
+      video.addEventListener('loadeddata', () => {
+        video.classList.add('loaded');
+        if (loadingIndicator) {
+          loadingIndicator.style.display = 'none';
+        }
+      });
+      
+      // Hover to play
+      item.addEventListener('mouseenter', () => {
+        if (item.getAttribute('data-visible') === 'true') {
+          video.play().then(() => {
+            item.classList.add('playing');
+          }).catch((error) => {
+            console.warn('Video play failed:', error);
+          });
+        }
+      });
+      
+      // Pause on mouse leave
+      item.addEventListener('mouseleave', () => {
+        video.pause();
+        item.classList.remove('playing');
+        // Reset video to beginning for next hover
+        video.currentTime = 0;
+      });
+      
+      // Handle video errors
+      video.addEventListener('error', (e) => {
+        console.error('Video loading error:', video.src, e);
+        if (loadingIndicator) {
+          loadingIndicator.innerHTML = `
+            <div class="flex flex-col items-center gap-2">
+              <svg class="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+              </svg>
+              <span class="text-sm text-red-600">Failed to load</span>
+            </div>
+          `;
+        }
+      });
+    });
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      videoObserver.disconnect();
+    });
+  });
+</script>
+
+
