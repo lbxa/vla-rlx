@@ -1,6 +1,9 @@
 [submodule "gr00t"]
 	path = gr00t
-	url = https://github.com/lbxa/gr00t
+	url = git@github.com:lbxa/gr00t.git
 [submodule "lerobot"]
 	path = lerobot
-	url = https://github.com/lbxa/lerobot
+	url = git@github.com:lbxa/lerobot.git
+[submodule "so101"]
+	path = so101
+	url = git@github.com:lbxa/so101.git
