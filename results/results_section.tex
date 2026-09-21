@@ -1,0 +1,151 @@
+% =============================================================================
+% RESULTS SECTION - Residual RL Experimental Evaluation
+% =============================================================================
+% This section is designed to plug into a ClassicThesis document.
+% Image path: Figures/Plots/
+% =============================================================================
+
+\section{Experimental Results}
+\label{sec:results}
+
+\noindent\textbf{Draft evidence status.} The supplied analysis CSV differs from the manuscript appendix in 431 of 980 scores. Original experiment records are needed to identify the authoritative version; the numerical claims below remain historical draft text. See the repository's \texttt{docs/reproduction-status.md} before using this section.
+
+This section compares the frozen base policy ($\pi_{\text{base}}$), three pure \ac{RL} algorithms (TD3, SAC, PPO), and their corresponding residual variants (Res-TD3, Res-SAC, Res-PPO) across seven manipulation tasks. The manuscript documents 20 evaluation rollouts per method--task pair: trials 1--5 are in-distribution, trials 6--10 apply dynamic perturbations, and trials 11--20 are \ac{OOD}. These labels describe the documented protocol and have not been verified against original rollout logs. Scores represent discretized task progress, not binary success rates. The manuscript reports one training run per method--task pair; the 20 evaluation rollouts are not independent training runs.
+
+% -----------------------------------------------------------------------------
+\subsection{Overall Performance Analysis}
+\label{sec:results:overall}
+
+We begin by examining the aggregate performance across all seven tasks to establish the general efficacy of each approach. \autoref{fig:results:overall} presents the mean task progress averaged across all tasks and trials, providing a high-level comparison of the evaluated methods.
+
+\bigdoublefigure[pos=tbhp,
+                  mainlabel={fig:results:overall},
+                  maincaption={Overall performance comparison across all seven manipulation tasks. Left: Mean task progress aggregated across all 20 trials demonstrates that residual \ac{RL} methods consistently outperform both the base policy and pure \ac{RL} approaches. Right: Generalization scores computed exclusively from \ac{OOD} trials (11--20) reveal the superior robustness of residual methods under distribution shift. Error bars indicate 95\% confidence intervals. The dashed horizontal line denotes the base policy performance as reference.},
+                  mainshortcaption={Overall and generalization performance comparison.},%
+                  leftlabel={fig:results:overall:mp},
+                  leftcaption={Mean task progress (all trials).},
+                  leftshortcaption={},%
+                  rightlabel={fig:results:overall:gen},
+                  rightcaption={Generalization score (\ac{OOD} trials).},
+                  rightshortcaption={},
+                  spacing={\hspace{0.5cm}}
+                ]
+{Plots/01_overall_mean_progress}{Plots/02_generalization_comparison}
+
+The results reveal a clear performance hierarchy. Pure \ac{RL} methods (TD3, SAC, PPO) consistently underperform the base policy, achieving mean progress scores between 0.13 and 0.20 compared to the base policy's 0.49. This degradation can be attributed to the challenge of learning manipulation behaviors from scratch in high-dimensional action spaces without leveraging prior knowledge encoded in the pretrained policy.
+
+In stark contrast, residual \ac{RL} methods achieve substantially higher performance, with Res-SAC attaining the highest mean progress of 0.78---a relative improvement of 59\% over the base policy. This demonstrates the effectiveness of the residual formulation in preserving beneficial behaviors from the base policy while enabling targeted adaptation through the learned residual component.
+
+% -----------------------------------------------------------------------------
+\subsection{Transfer Gap and Generalization Benefits}
+\label{sec:results:transfer}
+
+A central hypothesis of this work is that residual \ac{RL} can effectively bridge the distribution gap that limits frozen pretrained policies. To quantify this benefit, we compute the transfer gap $\Delta_{\text{gen}}$ as defined in \autoref{eq:transfer-gap}, measuring the explicit performance gain of each residual method over the base policy on \ac{OOD} trials.
+
+\bigfigure[pos=tbhp,
+           label={fig:results:transfer},
+           shortcaption={Transfer gap across residual \ac{RL} methods.}]
+{Plots/03_transfer_gap}
+{Transfer gap ($\Delta_{\text{gen}}$) quantifying the generalization improvement provided by residual \ac{RL} over the frozen base policy. All three residual variants demonstrate substantial positive transfer, with Res-SAC achieving the largest improvement of $+0.46$. The consistent positive values across all methods validate our hypothesis that online \ac{RL} adaptation effectively compensates for distribution shift. Error bars represent 95\% confidence intervals computed across the seven tasks.}
+
+\autoref{fig:results:transfer} presents the transfer gap results. All three residual methods exhibit significant positive transfer, validating the core hypothesis of our approach. Res-SAC demonstrates the largest transfer gap of $+0.46$, followed by Res-PPO ($+0.37$) and Res-TD3 ($+0.36$). These results confirm that the residual formulation successfully enables the \ac{RL} agent to compensate for the limitations of the frozen base policy when encountering novel conditions.
+
+The statistical significance of these improvements is evidenced by the non-overlapping confidence intervals with zero for all methods. Furthermore, the relative consistency of the transfer gap across different \ac{RL} algorithms suggests that the benefits of the residual framework are largely algorithm-agnostic, though SAC-based methods appear to offer marginal advantages.
+
+% -----------------------------------------------------------------------------
+\subsection{Per-Task Performance Breakdown}
+\label{sec:results:pertask}
+
+To understand performance variation across task complexities, we examine the per-task breakdown comparing the base policy against the best-performing residual method for each task.
+
+\bigfigure[pos=tbhp,
+           label={fig:results:pertask},
+           shortcaption={Per-task performance comparison.}]
+{Plots/04_per_task_breakdown}
+{Per-task performance comparison between the base policy and the best-performing residual \ac{RL} method. Percentage annotations indicate relative improvement over the base policy. Residual \ac{RL} achieves consistent improvements across all tasks, with gains ranging from 18\% (Erase Whiteboard) to 156\% (Close French Press). The largest improvements are observed on tasks where the base policy struggles most, suggesting that residual adaptation is particularly effective at addressing systematic failure modes. Error bars indicate 95\% confidence intervals.}
+
+\autoref{fig:results:pertask} reveals that residual \ac{RL} achieves improvements across all seven tasks without exception. The magnitude of improvement varies considerably: tasks where the base policy already performs well (\eg, Erase Whiteboard with base score 0.81) show more modest gains of 18\%, while challenging tasks such as Close French Press and Bus Table (Hard) exhibit improvements exceeding 150\%.
+
+This pattern suggests that the residual component is particularly effective at addressing systematic failure modes in the base policy. Rather than simply amplifying existing capabilities, the learned residual appears to provide complementary corrections that enable successful completion of previously failing trajectories.
+
+% -----------------------------------------------------------------------------
+\subsection{Comparison of Residual RL Algorithms}
+\label{sec:results:algorithms}
+
+We now examine the relative performance of the three residual \ac{RL} algorithms across different metrics and tasks.
+
+\bigfigure[pos=tbhp,
+           label={fig:results:resrl},
+           shortcaption={Residual \ac{RL} algorithm comparison across tasks.}]
+{Plots/05_residual_rl_comparison}
+{Detailed comparison of the three residual \ac{RL} algorithms (Res-TD3, Res-SAC, Res-PPO) across all seven tasks. Left panel shows mean task progress across all 20 trials; right panel shows generalization scores from \ac{OOD} trials only. Res-SAC consistently achieves the highest or near-highest performance across tasks, particularly excelling on Bus Table variants and Erase Whiteboard. Error bars indicate 95\% confidence intervals.}
+
+\autoref{fig:results:resrl} provides a granular view of algorithm performance. Res-SAC demonstrates the most consistent performance, achieving the highest scores on five of seven tasks for generalization and maintaining competitive performance on the remaining two. Res-TD3 and Res-PPO exhibit similar aggregate performance but with higher variance across tasks.
+
+The superior performance of Res-SAC can be attributed to SAC's maximum entropy framework, which encourages exploration and prevents premature convergence to suboptimal residual policies. This is particularly beneficial in the residual setting, where the action space is effectively constrained by the base policy output, requiring careful exploration of the residual correction space.
+
+% -----------------------------------------------------------------------------
+\subsection{Pure RL versus Residual RL}
+\label{sec:results:pure-vs-residual}
+
+To isolate the contribution of the residual formulation, we directly compare each \ac{RL} algorithm with its residual counterpart.
+
+\bigfigure[pos=tbhp,
+           label={fig:results:rlvsres},
+           shortcaption={Direct comparison of pure \ac{RL} versus residual \ac{RL}.}]
+{Plots/06_rl_vs_residual_rl}
+{Head-to-head comparison between pure \ac{RL} and residual \ac{RL} for each algorithm family on generalization performance. The residual formulation provides substantial improvements across all three algorithms: $+0.50$ for TD3, $+0.55$ for SAC, and $+0.52$ for PPO. These consistent gains demonstrate that the benefits of residual learning are orthogonal to the choice of underlying \ac{RL} algorithm. Error bars indicate 95\% confidence intervals.}
+
+\autoref{fig:results:rlvsres} provides compelling evidence for the effectiveness of the residual formulation. Across all three algorithm families, the residual variant dramatically outperforms its pure \ac{RL} counterpart. The improvements are remarkably consistent: $+0.50$ for TD3, $+0.55$ for SAC, and $+0.52$ for PPO.
+
+This consistency suggests that the primary driver of improved performance is the residual formulation itself rather than algorithm-specific factors. By leveraging the base policy as a prior, residual methods avoid the sample complexity challenges that plague pure \ac{RL} in high-dimensional manipulation tasks, enabling effective learning within practical training budgets.
+
+% -----------------------------------------------------------------------------
+\subsection{Summary of Key Findings}
+\label{sec:results:summary}
+
+\autoref{fig:results:hero} synthesizes our main findings into a single comparative visualization, highlighting the dramatic improvement achieved by residual \ac{RL}.
+
+\bigfigure[pos=tbhp,
+           label={fig:results:hero},
+           shortcaption={Summary comparison of policy approaches.}]
+{Plots/07_hero_summary}
+{Summary comparison of generalization performance across policy paradigms. The frozen base policy achieves a generalization score of 0.33, while the best pure \ac{RL} approach (SAC) reaches only 0.26. In contrast, the best residual \ac{RL} method (Res-SAC) achieves 0.78---representing a 134\% improvement over the base policy. This result demonstrates that residual \ac{RL} successfully combines the strengths of pretrained policies with online adaptation, dramatically improving robustness to distribution shift. Error bars indicate 95\% confidence intervals.}
+
+The key finding illustrated in \autoref{fig:results:hero} is striking: Res-SAC achieves a generalization score of 0.78, representing a \textbf{134\% improvement} over the base policy (0.33) and a \textbf{200\% improvement} over pure SAC (0.26). This result validates our central thesis that residual \ac{RL} provides an effective mechanism for adapting pretrained policies to novel conditions while preserving their beneficial behaviors.
+
+% -----------------------------------------------------------------------------
+\subsection{Robustness to Task Difficulty}
+\label{sec:results:difficulty}
+
+Finally, we investigate how performance scales with task difficulty using the Bus Table environment, which provides three difficulty levels with progressively more challenging dynamics.
+
+\bigfigure[pos=tbhp,
+           label={fig:results:difficulty},
+           shortcaption={Performance across task difficulty levels.}]
+{Plots/08_task_difficulty}
+{Generalization performance as a function of task difficulty on the Bus Table environment. While the base policy exhibits significant performance degradation as difficulty increases (from 0.63 on Easy to 0.13 on Hard), Res-SAC maintains robust performance across all difficulty levels (0.80--1.00). The shaded regions indicate 95\% confidence bands. This robustness to difficulty scaling demonstrates the practical utility of residual \ac{RL} for real-world deployment where task conditions may vary unpredictably.}
+
+\autoref{fig:results:difficulty} reveals a critical advantage of the residual approach: robustness to task difficulty. The base policy exhibits substantial performance degradation as difficulty increases, dropping from a generalization score of 0.63 on the Easy variant to merely 0.13 on the Hard variant---a decline of 79\%.
+
+In contrast, Res-SAC maintains consistently high performance across all difficulty levels, achieving scores between 0.68 and 1.00. Notably, the performance gap between Res-SAC and the base policy \emph{increases} with task difficulty, suggesting that the residual component provides increasingly valuable corrections as the base policy encounters more challenging conditions.
+
+This robustness property is essential for practical deployment, where environmental conditions may vary unpredictably. The residual formulation provides a principled mechanism for maintaining reliable performance across the spectrum of operational conditions without requiring separate policies for each difficulty regime.
+
+% -----------------------------------------------------------------------------
+\subsection{Discussion}
+\label{sec:results:discussion}
+
+The experimental results presented in this section provide strong empirical support for the residual \ac{RL} framework. Several key observations merit further discussion:
+
+\begin{enumerate}
+    \item \textbf{Consistent improvements across tasks and algorithms:} Residual \ac{RL} improves upon both the base policy and pure \ac{RL} across all seven tasks and all three algorithm families. This consistency suggests that the benefits are fundamental to the residual formulation rather than artifacts of specific experimental conditions.
+    
+    \item \textbf{Substantial transfer gap:} The positive transfer gap across all residual methods confirms that online adaptation successfully compensates for distribution shift. The magnitude of improvement (up to $+0.46$) indicates that residual learning addresses meaningful failure modes rather than providing marginal corrections.
+    
+    \item \textbf{Robustness to difficulty:} The maintained performance under increasing task difficulty demonstrates the practical utility of the approach. Unlike the base policy, which degrades substantially under challenging conditions, residual \ac{RL} provides reliable performance across operational regimes.
+    
+    \item \textbf{Algorithm recommendation:} Among the evaluated algorithms, Res-SAC emerges as the recommended choice due to its superior aggregate performance and consistency across tasks. The maximum entropy objective appears particularly well-suited to the residual learning setting.
+\end{enumerate}
+
+These findings establish residual \ac{RL} as a viable approach for adapting pretrained manipulation policies to novel deployment conditions, combining the efficiency of transfer learning with the flexibility of online adaptation.

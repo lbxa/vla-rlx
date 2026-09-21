@@ -1,5 +1,18 @@
 # GR00T Inference Pipeline Fix - Summary
 
+> **Historical note — not a verified reproduction guide (audit: 4 September 2026).**
+> The `scripts/lerobot_inference_service.py` and `scripts/LEROBOT_INFERENCE_README.md`
+> described below are absent from both the parent's pinned GR00T revision
+> (`8810e55`) and the inspected local revision (`a7af7be`). The commands, completion
+> checkmarks, and TensorRT speed claims below have not been validated and should
+> not be treated as a working release. Native GR00T serving is implemented in
+> [gr00t/scripts/inference_service.py](gr00t/scripts/inference_service.py), while
+> LeRobot's GR00T loader is in
+> [modeling_groot.py](lerobot/src/lerobot/policies/groot/modeling_groot.py).
+> Match a checkpoint's format and preprocessing metadata to its loader.
+> Start with the [research README](README.md) for the available CPU analysis path
+> and the outstanding requirements for hardware reproduction.
+
 ## Problem Diagnosis
 
 ### Error 1: AttributeError: 'GR00T_N1_5_Config' object has no attribute 'backbone_cfg'

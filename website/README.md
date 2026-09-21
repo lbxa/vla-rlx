@@ -1,4 +1,19 @@
-# Astro Starter Kit: Basics
+# Website source status
+
+This checkout contains a research presentation describing 12 tasks and
+30 trials per task. It does not match the seven-task, 20-trial page inspected at
+[vla.lbxa.net](https://vla.lbxa.net/) on 4 September 2026. Its quantitative claims
+and example reproduction commands have not been reconciled with the supplied
+results or manuscript. Its relationship to the deployed source revision has not
+been established. Locate the current page's source before editing or
+deploying it as the thesis site.
+
+The current repository documentation is in the [research README](../README.md).
+The [protocol and evidence record](../docs/reproduction-status.md) documents the
+5–5–10 trial split and the unresolved score discrepancy. The existing GitHub Pages
+workflow builds this directory on pushes to `main`; this audit did not deploy it.
+
+## Original starter instructions
 
 ```sh
 bun create astro@latest -- --template basics
