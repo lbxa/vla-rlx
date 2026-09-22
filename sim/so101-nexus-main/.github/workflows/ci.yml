@@ -1,0 +1,205 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  UV_CACHE_DEPENDENCY_GLOB: uv.lock
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ env.UV_CACHE_DEPENDENCY_GLOB }}
+          cache-suffix: ci-lint
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install dev dependencies
+        run: uv sync --locked --group dev
+      - name: Lint
+        run: make lint
+
+  test:
+    name: test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: System deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb ffmpeg libgl1 libglx-mesa0 libegl1-mesa-dev libosmesa6-dev
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ env.UV_CACHE_DEPENDENCY_GLOB }}
+          cache-suffix: ci-test-py${{ matrix.python-version }}
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --locked --group test
+
+      - name: Run tests
+        run: xvfb-run -a make test
+
+  test-macos:
+    name: test-macos
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ env.UV_CACHE_DEPENDENCY_GLOB }}
+          cache-suffix: ci-test-macos
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --locked --group test
+
+      - name: Run GL-free MuJoCo and docs checks
+        env:
+          MUJOCO_GL: disabled
+        run: uv run pytest tests/mujoco/test_env_invariants.py tests/test_docs_consistency.py -q
+
+  test-warp:
+    name: test-warp
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: System deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libglx-mesa0 libegl1-mesa-dev libosmesa6-dev
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ env.UV_CACHE_DEPENDENCY_GLOB }}
+          cache-suffix: ci-test-warp
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --locked --extra warp
+
+      - name: Run Warp tests
+        env:
+          MUJOCO_GL: egl
+        run: make test-warp
+
+  rocm-lock:
+    name: rocm-lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ env.UV_CACHE_DEPENDENCY_GLOB }}
+          cache-suffix: ci-rocm-lock
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Verify rocm extra resolves (no AMD GPU on this runner, dry-run only)
+        run: uv sync --locked --extra rocm --no-default-groups --dry-run
+
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ env.UV_CACHE_DEPENDENCY_GLOB }}
+          cache-suffix: ci-docs
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 9
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+      - name: Cache Next.js build output
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: docs/.next/cache
+          key: ${{ runner.os }}-next-${{ hashFiles('docs/pnpm-lock.yaml') }}-${{ hashFiles('docs/app/**', 'docs/content/**', 'docs/lib/**', 'docs/*.mjs', 'docs/*.ts', 'docs/*.json') }}
+          restore-keys: |
+            ${{ runner.os }}-next-${{ hashFiles('docs/pnpm-lock.yaml') }}-
+      - name: Install dev dependencies
+        run: uv sync --locked --group dev
+      - name: Run docs checks
+        run: make docs-check

@@ -1,0 +1,11 @@
+{
+  "title": "API Reference",
+  "pages": [
+    "core-overview",
+    "configs",
+    "objects",
+    "lerobot-processors",
+    "policies",
+    "stability"
+  ]
+}

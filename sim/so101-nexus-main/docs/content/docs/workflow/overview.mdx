@@ -1,0 +1,85 @@
+---
+title: Record -> Clone -> Reinforce
+description: How the three pipeline stages hand artifacts to each other, and how to start at stage two with no hardware.
+---
+
+SO101-Nexus is built around one pipeline. **Record** demonstrations by teleoperating a
+simulated follower with a physical leader arm, which produces a LeRobot dataset. **Clone**
+an actor from that dataset with behavior cloning, which produces a BC-pretrained policy.
+**Reinforce** that policy with PPO while a persistent BC loss anchors it to the demos, which
+produces a checkpoint you can evaluate.
+
+The artifact passed between stages is small and explicit: stage 1 hands over a dataset repo
+id, stage 2 hands over actor weights, stage 3 hands over `best_agent.pt`.
+
+<Cards>
+  <Card title="Record" href="/docs/workflow/teleoperation">
+    Drive a simulated SO-101 with a physical leader arm. Output: a LeRobot v3 dataset.
+  </Card>
+  <Card title="Clone and reinforce" href="/docs/workflow/training">
+    BC-pretrain the actor, then fine-tune with PPO. Output: a policy checkpoint.
+  </Card>
+</Cards>
+
+## Start without hardware
+
+You do not need a leader arm. Two demonstration datasets are published, so you can skip the
+record stage entirely:
+
+| Task | Published dataset |
+| --- | --- |
+| PickLift | [`johnsutor/MuJoCoPickLift-v1`](https://huggingface.co/datasets/johnsutor/MuJoCoPickLift-v1) |
+| PickAndPlace | [`johnsutor/MuJoCoPickAndPlace-v1`](https://huggingface.co/datasets/johnsutor/MuJoCoPickAndPlace-v1) |
+
+`examples/bc_ppo_warp.py` already defaults to `johnsutor/MuJoCoPickLift-v1` and
+`WarpPickLift-v1`, so one command runs both the clone and the reinforce stage:
+
+```bash
+uv run --extra warp --extra train python examples/bc_ppo_warp.py
+```
+
+It downloads the demos, BC-pretrains the actor, fine-tunes with PPO, and writes
+`runs/WarpPickLift-v1__*/best_agent.pt`. Evaluate that checkpoint deterministically:
+
+```bash
+uv run --extra warp python examples/eval_warp.py \
+    --env-id WarpPickLift-v1 \
+    --checkpoint "runs/WarpPickLift-v1__*/best_agent.pt"
+```
+
+When you do get a leader arm, the record stage slots in front: teleoperate, then point the
+same command at your dataset with `--demo-repo your-user/YourDataset`. Nothing downstream
+changes.
+
+<Callout type="info">
+Prefer a browser? The
+[BC + PPO Colab](https://colab.research.google.com/github/johnsutor/so101-nexus/blob/main/examples/bc_ppo_warp_colab.ipynb)
+runs this pipeline end to end on a GPU runtime, with embedded TensorBoard and a rollout
+video.
+</Callout>
+
+## The MuJoCo to Warp handoff
+
+Recording runs on the MuJoCo backend, because it needs a live viewer and a physical leader
+arm. Training runs on the Warp backend, because it needs thousands of parallel worlds. Two
+consequences are handled for you, but you should know they exist.
+
+**Action units.** Demos store absolute joint-position targets, while training uses
+`pd_joint_delta_pos`. Demo actions are relabeled into deltas between consecutive recorded
+joint states, normalized by the environment's `_DELTA_ACTION_SCALE`. Do not switch control
+modes between record and train. See [Control Modes](/docs/concepts/control-modes).
+
+**Physics divergence.** Warp uses an implicit integrator with no noslip constraint, so a
+policy moved between backends may need light re-tuning. See
+[Backends](/docs/concepts/backends).
+
+## Next
+
+<Cards>
+  <Card title="Environments" href="/docs/environments">
+    The available tasks, their observation widths, and their success predicates.
+  </Card>
+  <Card title="Customization" href="/docs/concepts/customization">
+    Swap objects, distractors, colors, and spawn regions.
+  </Card>
+</Cards>

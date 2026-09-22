@@ -1,0 +1,302 @@
+---
+title: Observations
+description: The composable state and camera components, how they compose into a vector or dict, and their units.
+---
+
+Every SO101-Nexus environment builds its observation from a list of **observation components**. Components are lightweight descriptor classes that tell the environment which data to include. State components contribute slices of a flat vector; camera components add image tensors to a dictionary observation.
+
+## Observation Components
+
+### State Components
+
+State components produce fixed-size slices of the observation vector.
+
+| Component | Dimensions | Description |
+| --- | --- | --- |
+| `JointPositions` | 6 | Current angle of each robot joint |
+| `JointVelocities` | 6 | Angular velocity of each robot joint (rad/s) |
+| `RestingJointPositions` | 5 | Configured resting arm angles in degrees, excluding the gripper (PickReturn) |
+| `JointEfforts` | 6 | Actuator force on each robot joint (N*m) |
+| `GripperContactForce` | 3 | World-frame resultant contact force on the two fingers (N) |
+| `EndEffectorPose` | 7 | TCP position (3) + quaternion orientation (4) |
+| `TargetOffset` | 3 | Goal minus object for placement/stacking; goal minus TCP for Move and PickReturn |
+| `GazeDirection` | 3 | Unit vector from the wrist camera toward the target object |
+| `GazeState` | 1 | Binary in-frame flag (1.0 = the target object is inside the cone of half the wrist camera's vertical FOV) |
+| `GraspState` | 1 | Binary grasp flag (1.0 = grasping, 0.0 = not); requires two-sided contact with opposing normals |
+| `ObjectPose` | 7 | Target object position (3) + quaternion orientation (4) |
+| `ObjectVelocity` | 6 | Target object linear (3, world frame, m/s) + angular (3, body frame, rad/s) velocity |
+| `ObjectOffset` | 3 | Vector from gripper tip to target object |
+| `TargetPosition` | 3 | Absolute goal position (x, y, z) |
+
+`GazeDirection` and `GazeState` are anchored at the wrist camera, not at the gripper
+tip. Tasks without a target object (Move) do not support either component.
+
+### Rest target observations
+
+PickReturn includes `RestingJointPositions`, `TargetPosition`, and `TargetOffset`
+by default. The first contains the five configured arm angles in degrees,
+following `RobotConfig.rest_qpos_deg`. The existing `JointPositions` component
+reports current angles in radians; convert units before comparing them.
+`TargetPosition` gives the world-frame TCP position at the rest posture in meters.
+`TargetOffset` gives that position minus the current TCP position.
+The rest target stays fixed when reset randomizes the starting posture.
+
+This makes both the joint target and the relative end-effector target observable,
+similar to Habitat's relative resting-position sensor.
+In `obs_mode="visual"`, the existing actor state remains six joint positions;
+the configured rest components enter `info["privileged_state"]` with other state components.
+To expose rest targets directly to a camera-based actor, use `obs_mode="state"`
+and include the desired rest and camera components in `observations`.
+
+### Camera Components
+
+Camera components add image tensors to a dict-style observation space. They have `size = 0` in the state vector.
+
+| Component | Key | Description |
+| --- | --- | --- |
+| `WristCamera` | `"wrist_camera"`, `"wrist_camera_depth"` | RGB or depth from the camera on the robot's wrist |
+| `OverheadCamera` | `"overhead_camera"`, `"overhead_camera_depth"` | RGB or depth from the stationary camera above the workspace |
+
+Camera components accept `width` and `height` parameters (default 640x480). `WristCamera` also supports domain randomization parameters for FOV and pitch.
+
+```python
+from so101_nexus import WristCamera, OverheadCamera
+
+# Default resolution
+wrist = WristCamera()
+
+# Custom resolution with FOV randomization
+wrist = WristCamera(width=224, height=224, fov_deg_range=(60.0, 90.0))
+
+# Overhead camera
+overhead = OverheadCamera(width=320, height=240, fov_deg=45.0)
+```
+
+Both backends render camera observations with the same keys, shapes, and dtypes, except for Warp's leading batch dimension.
+MuJoCo uses a separate OpenGL renderer for each environment. Warp traces rays for all worlds in one batch on the simulation device.
+The renderers produce different pixel values at the same simulator state.
+See [Backends](/docs/concepts/backends) for execution and render modes.
+
+### Depth observations
+
+Select depth on either camera component:
+
+```python
+from so101_nexus import JointPositions, OverheadCamera, TouchConfig, WristCamera
+
+config = TouchConfig(observations=[
+    JointPositions(),
+    WristCamera(width=224, height=224, modalities=("rgb", "depth")),
+    OverheadCamera(width=320, height=240, modalities=("depth",)),
+])
+```
+
+Use this config with either backend's [environment creation loop](/docs/getting-started/quickstart).
+The observation contains `state`, `wrist_camera`, `wrist_camera_depth`, and `overhead_camera_depth`.
+The [camera API](/docs/api/configs#camera-components) defines the accepted modalities and defaults.
+
+| Output | MuJoCo NumPy array | Warp torch tensor | Values |
+| --- | --- | --- | --- |
+| RGB | `(height, width, 3)`, `uint8` | `(num_envs, height, width, 3)`, `uint8` | Color channels from 0 to 255 |
+| Depth | `(height, width)`, `float32` | `(num_envs, height, width)`, `float32` | Optical-axis distance in meters |
+
+Depth measures distance along the camera's forward axis, rather than Euclidean distance along each pixel's ray.
+A flat surface parallel to the image plane has constant depth.
+RGB and depth share the camera pose, resolution, and field of view, including wrist randomization at reset.
+Warp depth stays on the simulation device. Returned images retain their values across later steps and resets.
+
+Missing surfaces and surfaces beyond the far clipping plane return the far distance, `model.vis.map.zfar * model.stat.extent`.
+For Warp, the host model is `envs.unwrapped.mjm`.
+Depth values are not normalized, so distances greater than one meter remain greater than one.
+Rasterization and ray tracing can disagree at silhouettes and near clipping boundaries.
+MuJoCo clips surfaces at its near plane. Warp can report hits closer than that plane.
+
+Depth arrays are numeric observations. The LeRobot camera adapter, RGB image processors, EnvHub wrapper, and video recorders retain their RGB interfaces.
+These interfaces do not record or prepare depth for policies automatically.
+
+## Composing Observations
+
+Pass a list of components via the `observations` parameter on any config. Each task provides sensible defaults when `observations` is not specified.
+
+```python
+from so101_nexus import (
+    PickConfig, JointPositions, JointVelocities, EndEffectorPose, GraspState,
+    ObjectPose, ObjectOffset, WristCamera,
+)
+
+# State-only observations
+config = PickConfig(observations=[
+    JointPositions(),
+    JointVelocities(),
+    EndEffectorPose(),
+    GraspState(),
+    ObjectPose(),
+    ObjectOffset(),
+])
+
+# Add a wrist camera to the observation
+config = PickConfig(observations=[
+    EndEffectorPose(),
+    GraspState(),
+    ObjectPose(),
+    ObjectOffset(),
+    WristCamera(width=224, height=224),
+])
+```
+
+With `obs_mode="state"` (the default), a list with a camera component produces a dictionary. Its `"state"` key holds every selected state component. Each camera has a separate key, such as `"wrist_camera"` or `"overhead_camera"`.
+
+## Default Observations by Task
+
+Each task config auto-populates `observations` if you don't provide one:
+
+| Task | Default Components | State Dimensions |
+| --- | --- | --- |
+| PickLift | JointPositions, JointVelocities, EndEffectorPose, GraspState, GazeState, ObjectPose, ObjectOffset | 31 |
+| PickAndPlace | JointPositions, JointVelocities, EndEffectorPose, GraspState, GazeState, TargetPosition, ObjectPose, ObjectVelocity, ObjectOffset, TargetOffset | 43 |
+| StackCube | JointPositions, JointVelocities, EndEffectorPose, GraspState, GazeState, ObjectPose, ObjectVelocity, ObjectOffset, TargetPosition, TargetOffset | 43 |
+| Touch | JointPositions, JointVelocities, EndEffectorPose, GraspState, GazeState, ObjectPose, ObjectOffset | 31 |
+| LookAt | JointPositions, JointVelocities, EndEffectorPose, GazeDirection, GazeState | 23 |
+| Move | JointPositions, JointVelocities, EndEffectorPose, TargetOffset | 22 |
+
+PickAndPlace and StackCube carry `ObjectVelocity` because their success predicates
+require the object to have settled (`object_static_lin_threshold` /
+`cube_static_lin_threshold`), which no other component exposes. Success predicates per
+task are in [Environments](/docs/environments).
+
+## Observation Modes
+
+The `obs_mode` config parameter controls the semantic intent of the observation:
+
+### `obs_mode="state"` (default)
+
+The observation contains whatever components are listed in `observations`. This is useful for state-based reinforcement learning where the policy has access to ground-truth information.
+
+### `obs_mode="visual"`
+
+Designed for vision-based policies. Requires at least one camera component (e.g. `WristCamera()` or `OverheadCamera()`) in the `observations` list. Construction raises an error if no camera component is present.
+
+The returned dictionary contains the camera keys and a `"state"` key with `JointPositions` only. `info["privileged_state"]` contains the full selected state for a critic or diagnostic code, not as policy input.
+
+```python
+from so101_nexus import PickConfig, JointPositions, WristCamera
+
+config = PickConfig(
+    obs_mode="visual",
+    observations=[JointPositions(), WristCamera(width=224, height=224)],
+)
+```
+
+## Units: Degrees vs Radians
+
+Configuration APIs (`REST_POSE`, `*_deg` fields, spawn ranges, leader-arm helpers) use **degrees** per the library convention. Runtime values exposed by the env (`obs["state"]`, `env.step(action)`, `env.action_space.low/high`) use **radians**, which is the native unit of the underlying MuJoCo and MuJoCo Warp engines and the unit the integrator consumes when writing `ctrl`. Converting on every step would add runtime work without changing the simulation result.
+
+Code that crosses into LeRobot territory converts at the boundary:
+
+- The teleop recorder (`so101_nexus.teleop`) stores actions and states in degrees.
+- The rollout recorder (`so101_nexus.policy_adapters`) reads `obs["state"]` and converts to degrees before calling `select_action`, then converts the policy's degree-valued action back to radians before `env.step`.
+
+This matches LeRobot's `use_degrees=true` convention. For background on why LeRobot uses degrees, mid-range zero, and no wrap-around, see [Backward compatibility](https://github.com/huggingface/lerobot/blob/main/docs/source/backwardcomp.mdx).
+
+## Inspecting Observations
+
+```python
+import gymnasium as gym
+import so101_nexus.mujoco
+
+# State-only (default)
+env = gym.make("MuJoCoPickLift-v1")
+obs, info = env.reset()
+print(f"Observation shape: {obs.shape}")  # (31,)
+env.close()
+
+# With camera
+from so101_nexus import (
+    PickConfig, EndEffectorPose, GraspState, ObjectPose, ObjectOffset, WristCamera,
+)
+
+config = PickConfig(observations=[
+    EndEffectorPose(),
+    GraspState(),
+    ObjectPose(),
+    ObjectOffset(),
+    WristCamera(width=224, height=224),
+])
+env = gym.make("MuJoCoPickLift-v1", config=config)
+obs, info = env.reset()
+print(obs["state"].shape)          # (18,): state components
+print(obs["wrist_camera"].shape)   # (224, 224, 3): camera image
+env.close()
+```
+
+## Choosing the Right Setup
+
+| Use Case | `obs_mode` | Components | Why |
+| --- | --- | --- | --- |
+| State-based RL training | `"state"` | Default (no cameras) | Policy uses privileged state directly |
+| Vision-based RL training | `"visual"` | JointPositions + WristCamera | Policy learns from camera images; no ground-truth state |
+| Multi-view vision | `"visual"` | JointPositions + WristCamera + OverheadCamera | Policy fuses multiple camera views |
+| Debugging / visualization | `"state"` | Default + WristCamera | Full state + camera for analysis |
+
+## Specialist details
+
+<Accordions>
+<Accordion title="Why GazeState is conservative">
+
+`GazeState` tests the object's *origin* against a cone of half the *vertical* FOV, read
+live from the model so wrist-camera domain randomization moves the boundary with it. For
+a wider-than-tall image that cone is narrower than the rendered frame, and it is not an
+occlusion test. The wrist camera also sits about 8 cm from the TCP, the same order as the
+distance to a graspable object, so a TCP-anchored ray would answer a different question
+than "does the camera see it".
+
+</Accordion>
+<Accordion title="Replaying datasets recorded against an older layout">
+
+Teleop recording writes the full state vector to `observation.environment_state`, and
+the dataset declares one name per column (`joint_positions_0`, `joint_velocities_0`, ...)
+from `privileged_state_feature_names`. A dataset recorded before a component joined a
+task's defaults is therefore narrower than what the env now emits, and cannot be fed
+directly to a policy trained against the current env.
+
+`relabel_environment_state` maps the recorded columns onto the current layout by name.
+`JointVelocities` is reconstructed offline as a backward finite difference of the
+recorded `JointPositions` columns (never across an episode boundary), which is the same
+relabeling a real SO-101 control loop performs on consecutive servo position readings.
+Any other missing column raises, since it cannot be recovered from what was recorded.
+
+Pass the env's `control_dt` (simulated seconds per `step()`), not the dataset's `1 / fps`.
+The teleop recorder sleeps to pace the operator but advances the simulation exactly one
+step per recorded frame, so the wall-clock frame period would rescale every velocity.
+A finite difference is an interval average rather than the instantaneous `qvel` a live
+env reports, so relabeled velocities are unbiased but noisier than recorded ones.
+
+```python
+import numpy as np
+from so101_nexus import PickConfig, relabel_environment_state
+
+names = info["features"]["observation.environment_state"]["names"]  # from meta/info.json
+obs = relabel_environment_state(
+    np.stack(df["observation.environment_state"].to_numpy()),
+    names,
+    PickConfig().observations,
+    dt=env.unwrapped.control_dt,
+    episode_index=df["episode_index"].to_numpy(),
+)
+```
+
+A column such as `gaze_state_0` cannot be reconstructed offline (it needs the episode's
+wrist-camera pose, which the state vector does not carry), so a policy trained on those
+demonstrations has to run against the layout they were recorded with.
+`observations_from_feature_names` rebuilds that layout from the declared names, and the
+config accepts it directly:
+
+```python
+from so101_nexus import PickConfig, observations_from_feature_names
+
+recorded = observations_from_feature_names(names)
+env = gym.make("MuJoCoPickLift-v1", config=PickConfig(observations=recorded))
+```
+
+</Accordion>
+</Accordions>

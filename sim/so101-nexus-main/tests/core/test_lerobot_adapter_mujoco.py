@@ -1,0 +1,131 @@
+"""MuJoCo smoke tests for the LeRobot simulator follower adapter."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import draccus
+import pytest
+
+from so101_nexus.config import SO101_JOINT_NAMES
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+pytest.importorskip("gymnasium")
+lerobot_motors = pytest.importorskip("lerobot.motors")
+pytest.importorskip("mujoco")
+pytest.importorskip("so101_nexus.mujoco")
+MotorCalibration = lerobot_motors.MotorCalibration
+
+
+def _write_calibration(calibration_dir: Path, robot_id: str = "sim_test") -> None:
+    calibration = {
+        name: MotorCalibration(
+            id=i,
+            drive_mode=0,
+            homing_offset=0,
+            range_min=1000,
+            range_max=3000,
+        )
+        for i, name in enumerate(SO101_JOINT_NAMES, start=1)
+    }
+    calibration_dir.mkdir(parents=True, exist_ok=True)
+    with open(calibration_dir / f"{robot_id}.json", "w") as f, draccus.config_type("json"):
+        draccus.dump(calibration, f, indent=4)
+
+
+def _neutral_action() -> dict[str, float]:
+    return {f"{name}.pos": 0.0 for name in SO101_JOINT_NAMES}
+
+
+def test_sim_follower_connects_to_mujoco_reach(tmp_path: Path) -> None:
+    from so101_nexus.lerobot_adapter import SimSOFollower, SimSOFollowerConfig
+
+    _write_calibration(tmp_path)
+    robot = SimSOFollower(
+        SimSOFollowerConfig(
+            id="sim_test",
+            calibration_dir=tmp_path,
+            env_id="MuJoCoTouch-v1",
+            env_kwargs={"robot_init_qpos_noise": 0.0},
+        )
+    )
+    try:
+        robot.connect()
+        obs = robot.get_observation()
+        sent = robot.send_action(_neutral_action())
+        obs_after = robot.get_observation()
+
+        assert set(sent) == {f"{name}.pos" for name in SO101_JOINT_NAMES}
+        assert all(isinstance(obs[f"{name}.pos"], float) for name in SO101_JOINT_NAMES)
+        assert all(isinstance(obs_after[f"{name}.pos"], float) for name in SO101_JOINT_NAMES)
+    finally:
+        if robot.is_connected:
+            robot.disconnect()
+
+
+def test_mujoco_env_clipping_is_reflected_in_returned_action(tmp_path: Path) -> None:
+    from so101_nexus.lerobot_adapter import SimSOFollower, SimSOFollowerConfig
+
+    _write_calibration(tmp_path)
+    robot = SimSOFollower(
+        SimSOFollowerConfig(
+            id="sim_test",
+            calibration_dir=tmp_path,
+            env_id="MuJoCoTouch-v1",
+            env_kwargs={"robot_init_qpos_noise": 0.0},
+        )
+    )
+    try:
+        robot.connect()
+        edge_action = _neutral_action()
+        edge_action["shoulder_pan.pos"] = 180.0
+
+        sent = robot.send_action(edge_action)
+        env = robot._env.unwrapped
+        first_ctrl = env.data.ctrl[env._actuator_ids].copy()
+        sent_again = robot.send_action(sent)
+        second_ctrl = env.data.ctrl[env._actuator_ids].copy()
+
+        assert sent["shoulder_pan.pos"] < edge_action["shoulder_pan.pos"]
+        assert sent_again == pytest.approx(sent, abs=0.2)
+        assert second_ctrl == pytest.approx(first_ctrl, abs=0.002)
+    finally:
+        if robot.is_connected:
+            robot.disconnect()
+
+
+def test_default_gripper_limits_match_env() -> None:
+    import gymnasium as gym
+
+    from so101_nexus import SO101_GRIPPER_LIMITS_RAD
+    from so101_nexus.lerobot_adapter.normalization import read_gripper_limits_rad
+
+    env = gym.make("MuJoCoPickLift-v1")
+    try:
+        low, high = read_gripper_limits_rad(env)
+    finally:
+        env.close()
+
+    assert low == pytest.approx(SO101_GRIPPER_LIMITS_RAD[0], abs=1e-3)
+    assert high == pytest.approx(SO101_GRIPPER_LIMITS_RAD[1], abs=1e-3)
+
+
+@pytest.mark.parametrize("control_mode", ["pd_joint_delta_pos", "pd_joint_target_delta_pos"])
+def test_gripper_limits_reject_real_delta_mode_envs(control_mode: str) -> None:
+    """Regression: a real delta-mode env used to report its normalized box as radians.
+
+    ``read_gripper_limits_rad`` returned (-1.0, 1.0) instead of the jaw travel, which
+    silently corrupted every tick-to-radian conversion built on top of it.
+    """
+    import gymnasium as gym
+
+    from so101_nexus.lerobot_adapter.normalization import read_gripper_limits_rad
+
+    env = gym.make("MuJoCoPickLift-v1", control_mode=control_mode)
+    try:
+        with pytest.raises(ValueError, match=control_mode):
+            read_gripper_limits_rad(env)
+    finally:
+        env.close()

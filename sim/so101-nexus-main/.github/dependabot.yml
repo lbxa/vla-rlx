@@ -1,0 +1,49 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "10:00"
+      timezone: America/New_York
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: chore
+
+  - package-ecosystem: uv
+    directory: /
+    # Preserve tested bounds and avoid rewriting Torch's extra-specific declarations.
+    versioning-strategy: lockfile-only
+    ignore:
+      # LeRobot 0.5 requires NumPy <2.3, even though the base library allows <3.
+      - dependency-name: numpy
+        versions: [">=2.3"]
+    schedule:
+      interval: weekly
+      day: monday
+      time: "10:30"
+      timezone: America/New_York
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: chore
+
+  - package-ecosystem: npm
+    directory: /docs
+    schedule:
+      interval: weekly
+      day: monday
+      time: "11:00"
+      timezone: America/New_York
+    groups:
+      docs-dependencies:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: chore

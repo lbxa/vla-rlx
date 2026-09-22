@@ -1,0 +1,608 @@
+---
+title: Configuration Classes
+description: Reference for all configuration classes.
+---
+
+All configuration classes live in `so101_nexus` and are plain Python classes with default constructor arguments. They control rendering, robot parameters, reward shaping, observation composition, and environment behavior.
+
+`SimSOFollowerConfig.seed` controls the seed for the simulator reset during connection.
+The default is `None`, which lets Gymnasium select the random state.
+Teleoperation sets this field from its effective episode seed.
+
+## RenderConfig
+
+Controls the visualization render camera (not observations): image resolution and which view `render_mode` shows. `camera="side"` selects an angled tabletop bystander view, useful for watching rollouts and recording presentation-quality videos of trained policies; it never enters the observation space. Both backends support these views. See [Render modes](/docs/concepts/backends#render-modes) for backend output formats.
+
+```python
+from so101_nexus import RenderConfig
+
+render = RenderConfig(width=640, height=480)
+
+# Angled side view for render_mode="rgb_array" videos and the human viewer
+render = RenderConfig(
+    camera="side",
+    side_azimuth_range_deg=(120.0, 200.0),
+    side_elevation_range_deg=(-50.0, -20.0),
+    side_distance_range=(0.8, 1.2),
+)
+```
+
+### Constructor Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `width` | `int` | `640` | Render image width in pixels |
+| `height` | `int` | `480` | Render image height in pixels |
+| `camera` | `"overhead" \| "side"` | `"overhead"` | View for `rgb_array`, `depth_array`, and the initial `human` viewpoint. `"overhead"` looks straight down. `"side"` selects an angled view. |
+| `side_azimuth_deg` | `float` | `160.0` | Azimuth of the side view in degrees |
+| `side_elevation_deg` | `float` | `-30.0` | Elevation of the side view in degrees, in `[-90, 0)` |
+| `side_azimuth_range_deg` | `tuple[float, float] \| None` | `None` | Uniform azimuth bounds in degrees, overriding `side_azimuth_deg` |
+| `side_elevation_range_deg` | `tuple[float, float] \| None` | `None` | Uniform elevation bounds in degrees within `[-90, 0)`, overriding `side_elevation_deg` |
+| `side_distance_range` | `tuple[float, float] \| None` | `None` | Uniform positive straight-line distance bounds in meters from the workspace look-at target; `None` retains automatic workspace framing |
+
+Ranges apply to every task's side view on both backends, including RGB and depth, and the MuJoCo human viewer. Each reset samples the configured ranges using the environment's seeded RNG. Warp samples independently per world and only resamples worlds that reset, including same-step autoresets. The sampled pose stays fixed during the episode; the human viewer still allows manual orbiting. An open viewer adopts the newly sampled pose on reset.
+
+Endpoints must be finite and ordered. Equal endpoints select a fixed value. Omitted angle ranges retain the corresponding fixed angles, and `camera="overhead"` ignores all side ranges. With no ranges, existing behavior is unchanged. Explicit distance bounds can crop the workspace or place the camera inside geometry, so choose bounds that suit your scene. These settings do not change camera observations.
+
+---
+
+## Pose
+
+Defines a named robot arm configuration with fixed and free joints. See [Customization](/docs/concepts/customization) for a conceptual overview.
+
+```python
+from so101_nexus import Pose
+
+pose = Pose(
+    name="custom",
+    shoulder_pan_deg=(-110.0, 110.0),  # free: sampled uniformly
+    shoulder_lift_deg=-90.0,            # fixed
+    elbow_flex_deg=90.0,                # fixed
+    wrist_flex_deg=37.8,                # fixed
+    wrist_roll_deg=(-157.0, 163.0),     # free
+    gripper_deg=(-10.0, 100.0),         # free
+)
+```
+
+### Constructor Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | `str` | Human-readable identifier |
+| `shoulder_pan_deg` | `float \| tuple[float, float]` | Shoulder pan angle or range (degrees) |
+| `shoulder_lift_deg` | `float \| tuple[float, float]` | Shoulder lift angle or range (degrees) |
+| `elbow_flex_deg` | `float \| tuple[float, float]` | Elbow flex angle or range (degrees) |
+| `wrist_flex_deg` | `float \| tuple[float, float]` | Wrist flex angle or range (degrees) |
+| `wrist_roll_deg` | `float \| tuple[float, float]` | Wrist roll angle or range (degrees) |
+| `gripper_deg` | `float \| tuple[float, float]` | Gripper angle or range (degrees) |
+
+### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `sample(rng)` | `tuple[float, ...]` | Sample concrete joint angles in degrees |
+| `sample_rad(rng)` | `tuple[float, ...]` | Sample concrete joint angles in radians |
+
+### Built-in Poses
+
+| Name | Constant | Description |
+|------|----------|-------------|
+| `"rest"` | `REST_POSE` | Arm curled in rest position, free shoulder_pan/wrist_roll/gripper |
+| `"extended"` | `EXTENDED_POSE` | Arm extended forward, free shoulder_pan/wrist_roll/gripper |
+
+Access via the `POSES` dict or by constant:
+
+```python
+from so101_nexus import POSES, REST_POSE
+
+pose = POSES["rest"]   # same as REST_POSE
+```
+
+---
+
+## RobotConfig
+
+Controls the arm rest pose, grasping thresholds, and the end-effector solver.
+
+```python
+from so101_nexus import RobotConfig
+
+robot = RobotConfig(rest_qpos_deg=(0.0, -90.0, 90.0, 37.82, 0.0, -63.03))
+```
+
+### Constructor Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `rest_qpos_deg` | `tuple[float, ...]` | `(0.0, -90.0, 90.0, 37.8152144786, 0.0, -63.0253574644)` | Rest joint positions in degrees, one per joint |
+| `init_pose` | `str \| Pose \| None` | `None` | Initial pose for resets. String looks up from `POSES`, `Pose` instance used directly, `None` uses legacy rest + noise. |
+| `grasp_force_threshold` | `float` | `0.5` | Minimum contact normal force (N) for a finger contact to count toward grasp detection |
+| `grasp_opposing_normal_threshold` | `float` | `0.3` | How strongly the two finger sets must oppose for `GraspState` to fire: the force-weighted mean inward contact normals must satisfy `dot(n_gripper, n_jaw) <= -threshold`. Must be in `[-1, 1]`; `-1.0` disables the test and accepts any two-sided contact |
+| `static_vel_threshold` | `float` | `0.2` | Maximum velocity to consider the arm stationary |
+| `ee_orientation_weight` | `float` | `0.01` | Relative weight of the rotational error in the end-effector modes' inverse kinematics. Must be in `(0, 1]`. See [Control Modes](/docs/concepts/control-modes). |
+| `ee_delta_action_scale` | `tuple[float, ...]` | `(0.02, 0.02, 0.02, 0.1, 0.1, 0.1, 0.2)` | Physical scale of a +/-1 `pd_ee_delta_pose` action: `(x, y, z)` in meters, `(wx, wy, wz)` in radians, gripper in radians. Seven positive entries. |
+
+### Properties and methods
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `rest_qpos_rad` | `tuple[float, ...]` | `rest_qpos_deg` converted to radians |
+| `rest_qpos` | `tuple[float, ...]` | Alias for `rest_qpos_rad` |
+| `resolve_pose()` | `Pose \| None` | Returns the resolved `Pose` object, or `None` |
+
+---
+## RobotCameraPreset
+
+Robot-specific camera and mounting parameters for SO-100 and SO-101. All fields
+are required (no defaults); `wrist_cam_euler_center_rad` and `wrist_cam_euler_noise_rad`
+expose the Euler angles in radians.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `base_quat` | `tuple[float, float, float, float]` | Base orientation quaternion (w, x, y, z) |
+| `sensor_cam_eye_pos` | `tuple[float, float, float]` | Sensor camera eye position |
+| `sensor_cam_target_pos` | `tuple[float, float, float]` | Sensor camera target position |
+| `human_cam_eye_pos` | `tuple[float, float, float]` | Human camera eye position |
+| `human_cam_target_pos` | `tuple[float, float, float]` | Human camera target position |
+| `wrist_camera_mount_link` | `str` | Link name for wrist camera mounting |
+| `wrist_cam_pos_center` | `tuple[float, float, float]` | Center position for the wrist camera |
+| `wrist_cam_pos_noise` | `tuple[float, float, float]` | Position noise applied to the wrist camera |
+| `wrist_cam_euler_center_deg` | `tuple[float, float, float]` | Center wrist camera Euler angles in degrees |
+| `wrist_cam_euler_noise_deg` | `tuple[float, float, float]` | Euler angle noise applied to the wrist camera |
+
+---
+
+## RewardConfig
+
+Defines reward component weights and computes the shaped reward.
+
+```python
+from so101_nexus import RewardConfig
+
+reward = RewardConfig(reaching=0.25, grasping=0.25, task_objective=0.25, completion_bonus=0.25)
+```
+
+### Constructor Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `reaching` | `float` | `0.25` | Weight for the reaching component. Potential-shaped delta for pick-lift/pick-and-place; raw progress value for Touch/Move/LookAt. |
+| `grasping` | `float` | `0.25` | Weight for the grasping component. Potential-shaped delta for pick-lift/pick-and-place. |
+| `task_objective` | `float` | `0.25` | Weight for the task-specific objective. Potential-shaped delta for pick-lift/pick-and-place. |
+| `completion_bonus` | `float` | `0.25` | Weight for the task completion bonus |
+| `action_delta_penalty` | `float` | `0.0` | Penalty coefficient on L2 norm of consecutive action deltas |
+| `energy_penalty` | `float` | `0.0` | Penalty coefficient on L2 norm of the action vector |
+| `tanh_shaping_scale` | `float` | `5.0` | Scale factor for tanh reward shaping |
+| `velocity_shaping_scale` | `float` | `15.0` | Scale factor for tanh velocity shaping in PickAndPlace and StackCube task potentials |
+
+A "potential-shaped delta" pays the *change* in progress since the previous
+step rather than the raw value, so dwelling at a fixed state (e.g. holding an
+object without lifting it) earns no further reward. The implementation is
+`so101_nexus.rewards.potential_shaping`; see
+[Rewards](/docs/environments#rewards) for which tasks use it.
+
+### Validation
+
+The four base weights (`reaching + grasping + task_objective + completion_bonus`) must sum to 1.0. Construction raises an error if this constraint is violated. The penalty coefficients are separate additive terms and are not included in the sum constraint.
+
+### Methods
+
+#### `compute()`
+
+```python
+def compute(
+    reach_progress: float,
+    is_grasped: bool,
+    task_progress: float,
+    is_complete: bool,
+    action_delta_norm: float = 0.0,
+    energy_norm: float = 0.0,
+) -> float
+```
+
+Computes the weighted reward from per-component progress values.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `reach_progress` | `float` | required | Progress toward the target (0 to 1) |
+| `is_grasped` | `bool` | required | Whether the object is currently grasped |
+| `task_progress` | `float` | required | Progress on the task objective (0 to 1) |
+| `is_complete` | `bool` | required | Whether the task is fully complete |
+| `action_delta_norm` | `float` | `0.0` | Norm of the action delta for penalty |
+| `energy_norm` | `float` | `0.0` | Norm of energy usage for penalty |
+
+Returns a single `float` reward value.
+
+---
+
+## EnvironmentConfig
+
+Base configuration for all environments. Task-specific configs extend this class.
+
+```python
+from so101_nexus import EnvironmentConfig
+
+config = EnvironmentConfig(obs_mode="state")
+```
+
+### Constructor Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `render` | `RenderConfig \| None` | `None` | Render camera settings (visualization only): resolution and overhead/side view selection. Uses `RenderConfig()` defaults when `None`. |
+| `reward` | `RewardConfig \| None` | `None` | Reward weights. Uses `RewardConfig()` defaults when `None`. |
+| `robot` | `RobotConfig \| None` | `None` | Robot settings. Uses `RobotConfig()` defaults when `None`. |
+| `ground_colors` | `ColorConfig` | `"gray"` | Ground plane color(s) |
+| `reset_settle_frames` | `int` | `5` | No-op environment frames advanced after reset before returning the first observation |
+| `goal_thresh` | `float` | `0.025` | Distance threshold for goal completion (meters) |
+| `spawn_half_size` | `float` | `0.05` | Half-size of object spawn region |
+| `spawn_center` | `tuple[float, float]` | `(0.15, 0.0)` | Center of the spawn region (x, y) |
+| `spawn_min_radius` | `float` | `0.10` | Minimum spawn distance from the robot base |
+| `spawn_max_radius` | `float` | `0.30` | Maximum spawn distance from the robot base |
+| `spawn_angle_half_range_deg` | `float` | `90.0` | Half-range of spawn angle in degrees |
+| `obs_mode` | `ObsMode` | `"state"` | Observation mode. `"state"` returns all selected components. `"visual"` returns cameras and joint positions. `info["privileged_state"]` has the full selected state. |
+| `robot_colors` | `ColorConfig` | `"yellow"` | Robot body color(s) |
+| `robot_init_qpos_noise` | `float` | `0.02` | Noise added to initial joint positions |
+| `terminate_on_success` | `bool` | `True` | End the episode when the success predicate becomes true. When `False`, only the step cap truncates the episode. |
+| `observations` | `list[Observation] \| None` | `None` | Observation components to include. Task-specific configs provide defaults when `None`. |
+
+### Validation
+
+- `obs_mode` must be `"state"` or `"visual"`
+- `reset_settle_frames` must be a nonnegative integer
+- When `obs_mode="visual"`, `observations` must contain at least one camera component (`WristCamera` or `OverheadCamera`)
+- Duplicate camera component types are not allowed
+
+### Episode Length
+
+`max_episode_steps` is owned by the Gymnasium registration, not the config. Set it per env at construction, the same way for every task:
+
+```python
+import gymnasium as gym
+
+# MuJoCo (single env): applied via the TimeLimit wrapper
+env = gym.make("MuJoCoTouch-v1", config=config, max_episode_steps=256)
+
+# Warp (batched): forwarded to the vector env, which truncates internally
+envs = gym.make_vec("WarpTouch-v1", num_envs=4, device="cuda", config=config, max_episode_steps=256)
+```
+
+Registered defaults: PickLift, PickAndPlace, and StackCube 1024, Touch 512, LookAt and Move 256. They apply to both the `MuJoCo*-v1` and `Warp*-v1` ids.
+
+---
+
+## Observation Components
+
+Observation components are lightweight descriptor classes passed via the `observations` parameter. See [Observations](/docs/concepts/observations) for a conceptual overview.
+
+### State Components
+
+| Class | Size | Description |
+|-------|------|-------------|
+| `JointPositions()` | 6 | Current joint angles |
+| `JointVelocities()` | 6 | Current joint angular velocities (rad/s) |
+| `JointEfforts()` | 6 | Actuator force on each joint (N*m) |
+| `GripperContactForce()` | 3 | World-frame resultant contact force on the fingers (N) |
+| `EndEffectorPose()` | 7 | TCP position + quaternion |
+| `TargetOffset()` | 3 | Vector to the goal: goal minus object in manipulation tasks, goal minus TCP elsewhere |
+| `GazeDirection()` | 3 | Unit vector from the wrist camera toward the target object |
+| `GazeState()` | 1 | Binary in-frame flag (target object inside the wrist camera's field of view) |
+| `GraspState()` | 1 | Binary grasp flag (two-sided, opposing-normal contact) |
+| `ObjectPose()` | 7 | Object position + quaternion |
+| `ObjectVelocity()` | 6 | Object linear (world frame) + angular (body frame) velocity |
+| `ObjectOffset()` | 3 | Vector from gripper to object |
+| `TargetPosition()` | 3 | Absolute goal position |
+
+### Camera Components
+
+Both camera classes accept the keyword-only `modalities` parameter.
+Use `("rgb",)` for RGB, `("depth",)` for depth, or `("rgb", "depth")` for both.
+The default is `("rgb",)`. Empty, duplicate, and unknown modalities raise `ValueError`.
+See [Depth observations](/docs/concepts/observations#depth-observations) for output keys, units, shapes, and clipping behavior.
+
+#### `WristCamera`
+
+```python
+from so101_nexus import WristCamera
+
+cam = WristCamera(width=224, height=224)
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `width` | `int` | `640` | Image width in pixels |
+| `height` | `int` | `480` | Image height in pixels |
+| `fov_deg_range` | `tuple[float, float]` | `(60.0, 90.0)` | FOV randomization range in degrees |
+| `pitch_deg_range` | `tuple[float, float]` | `(-34.4, 0.0)` | Pitch randomization range in degrees |
+| `pos_x_noise` | `float` | `0.005` | Position noise along x-axis |
+| `pos_y_center` | `float` | `0.04` | Nominal y-offset from the wrist |
+| `pos_y_noise` | `float` | `0.01` | Position noise along y-axis |
+| `pos_z_center` | `float` | `-0.04` | Nominal z-offset from the wrist |
+| `pos_z_noise` | `float` | `0.01` | Position noise along z-axis |
+| `modalities` | `tuple[Literal["rgb", "depth"], ...]` | `("rgb",)` | Requested camera outputs |
+
+Properties: `fov_rad_range`, `pitch_rad_range` (converted to radians).
+
+#### `OverheadCamera`
+
+```python
+from so101_nexus import OverheadCamera
+
+cam = OverheadCamera(width=320, height=240, fov_deg=45.0)
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `width` | `int` | `640` | Image width in pixels |
+| `height` | `int` | `480` | Image height in pixels |
+| `fov_deg` | `float` | `45.0` | Vertical field-of-view in degrees |
+| `modalities` | `tuple[Literal["rgb", "depth"], ...]` | `("rgb",)` | Requested camera outputs |
+
+---
+
+## PickConfig
+
+Extends `EnvironmentConfig` with parameters for pick and lift tasks.
+
+```python
+from so101_nexus import PickConfig, CubeObject, YCBObject
+
+config = PickConfig(
+    objects=[CubeObject(color="blue"), YCBObject("009_gelatin_box")],
+    n_distractors=2,
+)
+```
+
+### Additional Parameters
+
+These are in addition to all `EnvironmentConfig` parameters.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `objects` | `list[SceneObject] \| SceneObject \| None` | `None` | Objects to pick. A single object is auto-wrapped. Defaults to `[CubeObject()]` when `None`. |
+| `n_distractors` | `int` | `0` | Number of distractor objects to spawn |
+| `lift_threshold` | `float` | `0.05` | Height above the table to count as lifted (meters) |
+| `max_goal_height` | `float` | `0.08` | Maximum target lift height (meters) |
+| `min_object_separation` | `float` | `0.04` | Minimum distance between spawned objects (meters) |
+
+### Default Observations
+
+When `observations` is not specified: `[JointPositions(), JointVelocities(), EndEffectorPose(), GraspState(), GazeState(), ObjectPose(), ObjectOffset()]` (31 dimensions).
+
+---
+
+## PickReturnConfig
+
+Extends `PickConfig` for the [pick-and-return task](/docs/environments#success-conditions).
+
+```python
+from so101_nexus import CubeObject, PickReturnConfig, RobotConfig
+
+config = PickReturnConfig(
+    objects=[CubeObject(color="blue"), CubeObject(color="red")],
+    return_threshold_deg=5.0,
+    robot=RobotConfig(rest_qpos_deg=(0.0, -90.0, 90.0, 37.8, 0.0, 0.0)),
+)
+```
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `return_threshold_deg` | `float` | `5.0` | Maximum absolute error of each arm joint from the configured rest posture, in degrees |
+
+`return_threshold_deg`, `lift_threshold`, and `max_goal_height` must be finite and positive.
+The rest target uses the first five angles in `robot.rest_qpos_deg`.
+`robot.static_vel_threshold` controls final arm staticness.
+`reward.velocity_shaping_scale` shapes the final slowdown and is active for this task.
+The default reward weights are `reaching=0.15`, `grasping=0.15`,
+`task_objective=0.3`, and `completion_bonus=0.4`.
+Passing a `RewardConfig` replaces these weights with your configuration.
+`max_goal_height` controls the curvature of lift shaping in meters.
+Lift credit is normalized to one at `lift_threshold` and saturates there.
+See [task details](/docs/environments#task-details) for reward stages and default observations.
+An explicit `observations` list is preserved, including an empty list.
+
+## PickAndPlaceConfig
+
+Extends `EnvironmentConfig` with parameters for pick-and-place tasks. The carried
+object is chosen per episode from an object pool: by default one cube per color
+in `cube_colors`, or pass `objects` to carry `YCBObject` / `MeshObject` instead.
+
+```python
+from so101_nexus import PickAndPlaceConfig, YCBObject
+
+# Default cube path (carries a colored cube onto the disc):
+config = PickAndPlaceConfig(cube_colors="blue", target_colors="green")
+
+# Default cubes with a float millimeter side length:
+millimeter_config = PickAndPlaceConfig(cube_side_length_mm=25.4)
+
+# Object-pool path (carries a YCB object):
+config = PickAndPlaceConfig(objects=[YCBObject("009_gelatin_box")], target_colors="green")
+```
+
+### Additional Parameters
+
+These are in addition to all `EnvironmentConfig` parameters.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `objects` | `list[SceneObject] \| SceneObject \| None` | `None` | Carried-object pool. `None` derives a cube pool from the cube sugar below. Passing this together with any non-default cube sugar raises `ValueError`. |
+| `target_colors` | `ColorConfig` | `"blue"` | Color(s) for the target disc |
+| `target_disc_radius` | `float` | `0.05` | Radius of the target disc (meters) |
+| `min_object_target_separation` | `float \| None` | `None` | Minimum object/disc spawn separation (meters); `None` falls back to `min_cube_target_separation` |
+| `cube_colors` | `ColorConfig` | `"red"` | Color(s) for the default cube pool (compatibility sugar) |
+| `cube_half_size` | `float \| None` | `None` | Legacy half-size of the default cube(s) in meters. Defaults to `0.0125` when neither size input is set. |
+| `cube_side_length_mm` | `float \| None` | `None` | Full side length of the default cube(s) in millimeters. Do not combine with `cube_half_size`. |
+| `cube_mass` | `float` | `0.01` | Mass of the default cube(s) (kg) |
+| `min_cube_target_separation` | `float` | `0.0375` | Deprecated alias for `min_object_target_separation` |
+| `object_static_lin_threshold` | `float` | `0.01` | Maximum carried-object linear speed (m/s) for success |
+| `object_static_ang_threshold` | `float` | `0.5` | Maximum carried-object angular speed (rad/s) for success |
+| `distractors` | `list[SceneObject] \| SceneObject \| None` | `None` | Pool of non-target objects distractors are drawn from. Defaults to green, yellow, and purple cubes sharing `cube_half_size` / `cube_mass` |
+| `n_distractors` | `int` | `0` | Number of distractor objects placed alongside the carried object each episode, sampled without replacement from `distractors` |
+| `min_object_separation` | `float` | `0.04` | Minimum spawn separation between the carried object and the distractors (meters), on top of their bounding radii |
+
+Distractor slots are only compiled when `n_distractors > 0`, so the default
+scene holds exactly one object. Distractors keep
+`min_object_target_separation` from the disc, so clutter never spawns on the
+goal. A distractor cube whose color is also a carried cube color warns,
+because the task description names the carried object by color alone.
+
+### Default Observations
+
+When `observations` is not specified: `[JointPositions(), JointVelocities(), EndEffectorPose(), GraspState(), GazeState(), TargetPosition(), ObjectPose(), ObjectVelocity(), ObjectOffset(), TargetOffset()]` (43 dimensions).
+
+## PickAndPlaceV2Config
+
+This config extends `PickAndPlaceConfig` for the [v2 center-placement contract](/docs/environments#success-conditions).
+Use it with the v2 environment IDs. V1 and v2 reject the other version's config.
+
+```python
+from so101_nexus import PickAndPlaceV2Config, YCBObject
+
+config = PickAndPlaceV2Config(
+    objects=[YCBObject("011_banana")],
+    target_disc_radius=0.05,
+)
+```
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `placement_mode` | `Literal["center"]` | `"center"` | Only center placement is supported |
+| `target_disc_radius` | `float` | `0.05` | Visible and evaluated acceptance radius in meters |
+| `goal_thresh` | `float` | Same as radius | Must equal `target_disc_radius`, otherwise construction fails |
+| `footprint_scanlines` | `int` | `256` | Midpoint rows for projected triangle-union integration |
+| `support_min_weight_fraction` | `float` | `0.9` | Required upward table force as a fraction of compiled object weight |
+| `support_force_tolerance` | `float` | `0.001` | Absolute floor for robot and other-object force tolerance, in newtons |
+| `support_relative_force_tolerance` | `float` | `0.01` | Relative floor for the same tolerance, as a fraction of object weight |
+| `placement_dwell_time` | `float` | `0.2` | Consecutive seconds of physical support and settled motion |
+| `object_static_lin_threshold` | `float` | `0.01` | Maximum center-of-mass linear speed in m/s |
+| `object_static_ang_threshold` | `float` | `0.5` | Maximum angular speed in rad/s |
+
+The resolved contact-force tolerance is the larger of the absolute and relative values.
+All numerical thresholds must be finite.
+The radius, dwell time, and minimum weight fraction must be positive.
+The minimum weight fraction must not exceed one. The relative force tolerance must be less than one.
+The scanline count must be a positive integer.
+`placement_contract` returns JSON-safe evaluator metadata without simulator state.
+
+---
+
+## StackCubeConfig
+
+Extends `EnvironmentConfig` with parameters for the stack-cube task. Two
+cubes are spawned every episode: cube A (picked up and stacked) and cube B
+(the stationary base). Colors default to disjoint values so the two cubes
+are never the same color out of the box.
+
+```python
+from so101_nexus import StackCubeConfig
+
+config = StackCubeConfig(cube_a_colors="green", cube_b_colors="purple")
+```
+
+### Additional Parameters
+
+These are in addition to all `EnvironmentConfig` parameters.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `cube_a_colors` | `ColorConfig` | `"red"` | Color(s) for cube A, the cube that gets picked up and stacked |
+| `cube_b_colors` | `ColorConfig` | `"blue"` | Color(s) for cube B, the stationary stacking base |
+| `cube_half_size` | `float \| None` | `None` | Legacy half-extent of each cube in meters. Defaults to `0.0125` when neither size input is set. |
+| `cube_side_length_mm` | `float \| None` | `None` | Full side length of each cube in millimeters. Do not combine with `cube_half_size`. |
+| `cube_mass` | `float` | `0.01` | Mass of each cube (kg); both cubes share the same mass |
+| `min_cube_separation` | `float` | `0.04` | Minimum spawn separation between the two cubes (meters), on top of their combined bounding radii |
+| `stack_alignment_margin` | `float` | `0.005` | Alignment tolerance (meters) for the stacked success check |
+| `cube_static_lin_threshold` | `float` | `0.01` | Maximum linear speed (m/s) at which cube A still counts as static for success |
+| `cube_static_ang_threshold` | `float` | `0.5` | Maximum angular speed (rad/s) at which cube A still counts as static for success |
+| `distractors` | `list[SceneObject] \| SceneObject \| None` | `None` | Pool of non-target objects distractors are drawn from. Defaults to green, yellow, and purple cubes sharing `cube_half_size` / `cube_mass` |
+| `n_distractors` | `int` | `0` | Number of distractor objects placed alongside cubes A and B each episode, sampled without replacement from `distractors` |
+
+Passing overlapping `cube_a_colors`/`cube_b_colors` pools warns (the two
+cubes may be the same color in some episodes).
+
+Distractor slots are only compiled when `n_distractors > 0`, so the default
+scene holds exactly two cubes. A distractor cube whose color is also a cube
+A/B color warns, because the task description names cubes by color alone.
+
+### Default Observations
+
+When `observations` is not specified: `[JointPositions(), JointVelocities(), EndEffectorPose(), GraspState(), GazeState(), ObjectPose(), ObjectVelocity(), ObjectOffset(), TargetPosition(), TargetOffset()]` (43 dimensions).
+
+---
+
+## TouchConfig
+
+Extends `PickConfig` with the touch task. The touch target can be any cube, YCB object, or mesh from the object pool.
+
+```python
+from so101_nexus import TouchConfig
+
+config = TouchConfig(touch_margin=0.03)
+```
+
+### Additional Parameters
+
+This is in addition to all `PickConfig` object-pool parameters (`objects`, `n_distractors`, `min_object_separation`) and the inherited `EnvironmentConfig` parameters.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `touch_margin` | `float` | `0.03` | Clearance added to the target object bounding radius; success fires when the TCP is within bounding_radius + touch_margin of the object center |
+
+### Default Observations
+
+When `observations` is not specified: `[JointPositions(), JointVelocities(), EndEffectorPose(), GraspState(), GazeState(), ObjectPose(), ObjectOffset()]` (31 dimensions).
+
+---
+
+## LookAtConfig
+
+Extends `EnvironmentConfig` with parameters for the look-at primitive task.
+
+```python
+from so101_nexus import LookAtConfig, CubeObject
+
+config = LookAtConfig(
+    objects=CubeObject(color="blue"),
+    fov_deg=60.0,
+)
+```
+
+### Additional Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `objects` | `list[SceneObject] \| SceneObject \| None` | `None` | Target object(s). `CubeObject`, `CylinderObject`, `SphereObject`, and `PyramidObject` are supported. Defaults to `[CubeObject()]`. |
+| `fov_deg` | `float \| None` | `None` | Wrist-camera vertical FOV in degrees; success = target within `fov_deg / 2` of the optical axis. `None` reads the live camera FOV. |
+
+The `MuJoCoLookAt-v1` and `WarpLookAt-v1` registrations default `max_episode_steps` to 256; override it at construction via `gym.make(..., max_episode_steps=N)` (MuJoCo) or `gym.make_vec(..., max_episode_steps=N)` (Warp).
+
+### Default Observations
+
+When `observations` is not specified: `[JointPositions(), JointVelocities(), EndEffectorPose(), GazeDirection(), GazeState()]` (23 dimensions).
+
+---
+
+## MoveConfig
+
+Extends `EnvironmentConfig` with parameters for the directional move primitive task.
+
+```python
+from so101_nexus import MoveConfig
+
+config = MoveConfig(direction="up", target_distance=0.10)
+```
+
+### Additional Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `direction` | `MoveDirection` | `"up"` | Cardinal direction: `"up"`, `"down"`, `"left"`, `"right"`, `"forward"`, `"backward"` |
+| `target_distance` | `float` | `0.10` | Distance in meters to travel from the initial TCP position |
+| `success_threshold` | `float` | `0.01` | Max residual distance (m) to count as success |
+
+The `MuJoCoMove-v1` and `WarpMove-v1` registrations default `max_episode_steps` to 256; override it at construction via `gym.make(..., max_episode_steps=N)` (MuJoCo) or `gym.make_vec(..., max_episode_steps=N)` (Warp).
+
+### Default Observations
+
+When `observations` is not specified: `[JointPositions(), JointVelocities(), EndEffectorPose(), TargetOffset()]` (22 dimensions).

@@ -1,0 +1,219 @@
+---
+title: LeRobot compatibility
+description: How SO101-Nexus stays aligned with the LeRobot ecosystem.
+---
+
+SO101-Nexus treats the [LeRobot](https://github.com/huggingface/lerobot) ecosystem as a first-class peer. When LeRobot ships an abstraction, we use it directly rather than reimplementing one of our own.
+
+## What this means in practice
+
+- **Processor pipelines.** Teleop conversions and optional env-observation transforms are implemented as `lerobot.processor.DataProcessorPipeline` instances composed of steps that subclass `ActionProcessorStep`, `ObservationProcessorStep`, and friends. Every custom step is registered with `ProcessorStepRegistry`, which means pipelines are serializable via `save_pretrained` and shareable on the Hugging Face Hub.
+- **Observation conventions.** When you opt into the wrapper, observations follow LeRobot's canonical keys: `observation.state` for the proprioceptive state vector and `observation.images.<name>` for camera frames in CHW float32 form.
+- **Hardware drivers.** SO leader and follower configs come straight from `lerobot.teleoperators.so_leader` and `lerobot.robots.so_follower`. We do not wrap or re-export them.
+- **Datasets.** Recordings use `LeRobotDataset` directly. The Gradio teleop recorder and the LeRobot CLI adapter both use the simulated SO follower conventions for action/state units and camera keys.
+
+## Loading the environments from the Hub (EnvHub)
+
+Every registered environment is published as a [LeRobot EnvHub](https://huggingface.co/docs/lerobot/en/envhub) package at [johnsutor/so101-nexus-envs](https://huggingface.co/johnsutor/so101-nexus-envs), so a LeRobot user reaches them with one call and no import of their own. The Hub files are shims over this library, so `pip install so101-nexus` remains the prerequisite:
+
+```python
+from lerobot.envs.factory import make_env
+
+envs = make_env(
+    "johnsutor/so101-nexus-envs:envs/MuJoCoPickLift-v1.py",
+    n_envs=4,
+    trust_remote_code=True,
+)
+env = envs["MuJoCoPickLift-v1"][0]
+```
+
+The Hub repository holds entry points only: one file per environment id under `envs/`, plus a root `env.py` serving `MuJoCoPickLift-v1`. Each file is a shim over `so101_nexus.envhub.make_env`, so the physics and reward code is whichever release you have installed rather than a copy living on the Hub. `requirements.txt` records the minimum version those shims need; LeRobot downloads only the named `.py` and does not install it for you. Publish an update with `python scripts/publish_envhub.py`.
+
+Call `so101_nexus.envhub.make_env` directly when you already depend on this library:
+
+```python
+from so101_nexus.envhub import make_env
+
+envs = make_env(
+    n_envs=4,
+    env_id="MuJoCoStackCube-v1",
+    obs_type="pixels_agent_pos",
+    observation_width=224,
+    observation_height=224,
+    control_mode="pd_joint_delta_pos",
+)
+```
+
+It returns LeRobot's `{env_id: {0: vector_env}}` mapping. Observations use the gym-side keys `lerobot.envs.utils.preprocess_observation` consumes, deliberately not the `observation.state` / `observation.images.*` keys that [`LeRobotEnvWrapper`](#using-lerobot-processors-with-so101-nexus-envs) produces further down this page. LeRobot converts the former into the latter itself, so an environment published for LeRobot emits these:
+
+| Key                 | Contents                                     | obs_type            |
+| ------------------- | -------------------------------------------- | ------------------- |
+| `agent_pos`         | Six joint positions, radians                  | both                |
+| `environment_state` | Full state vector                             | `state`             |
+| `pixels`            | `{"wrist": ..., "overhead": ...}`, HWC uint8 | `pixels_agent_pos`  |
+
+Units are the simulator's own, matching the gym action space. A recorded dataset is in LeRobot motor units instead (see the decoding section below); convert with `so101_nexus.dataset_row_to_sim_qpos` before replaying a recorded row against one of these envs.
+
+`pixels_agent_pos` withholds `environment_state` on purpose: the full task state stays in `info["privileged_state"]`, the privileged half of the asymmetric actor-critic split, so a pixels policy cannot read it out of its observation. The camera config keeps the task's default state components precisely so that channel stays intact.
+
+LeRobot's rollout reads two things off the environment itself: `add_envs_task` pulls the per-episode instruction from each sub-environment's `task_description`, and the rollout pulls per-episode success from `info["final_info"]["is_success"]`, which Gymnasium fills on the terminating step.
+
+Warp ids work the same way, with `device` selecting the simulator device. Their worlds are batched inside one process, so `n_envs` becomes the world count and `use_async_envs` is ignored. The adapter copies observations to host NumPy every step because that is LeRobot's contract; keep the batch on the GPU with `gymnasium.make_vec` when you are training rather than evaluating. On the MuJoCo ids `use_async_envs` is honored, but LeRobot's rollout indexes `VectorEnv.envs`, which Gymnasium's `AsyncVectorEnv` does not expose, so leave it off there too whenever LeRobot drives the environment.
+
+## Recording with `lerobot-record`
+
+Install SO101-Nexus with the `teleop` extra so `lerobot[feetech]` is available, then load the adapter explicitly with LeRobot's plugin import hook:
+
+```bash
+lerobot-record \
+  --robot.discover_packages_path=so101_nexus.lerobot_adapter \
+  --robot.type=sim_so_follower \
+  --robot.env_id=MuJoCoTouch-v1 \
+  --robot.id=my_robot \
+  --robot.calibration_dir=~/.cache/huggingface/lerobot/calibration/robots/so_follower \
+  --robot.use_degrees=true \
+  --teleop.type=so101_leader \
+  --teleop.port=/dev/ttyACM0 \
+  --teleop.id=my_leader \
+  --dataset.repo_id=user/my_sim_reach \
+  --dataset.num_episodes=10 \
+  --dataset.single_task="reach the target"
+```
+
+`--robot.discover_packages_path` is a parser hook, not a `RobotConfig` field. It imports `so101_nexus.lerobot_adapter` before config parsing so the LeRobot `@register_subclass` decorators for `sim_so_follower` and `sim` cameras run.
+
+The default is `--robot.use_degrees=true`, matching LeRobot 0.5 SO follower and SO leader defaults. Percent mode is also supported when both sides opt in:
+
+```bash
+--robot.use_degrees=false --teleop.use_degrees=false
+```
+
+Keep `--robot.use_degrees=true` for compatibility with `allenai/MolmoAct2-SO100_101`. That checkpoint expects `action` and `observation.state` to be six-element absolute joint-pose vectors with body joints in LeRobot degree units and the gripper in `RANGE_0_100`; `--robot.use_degrees=false` records a valid LeRobot dataset, but in a different body-joint unit space.
+
+Use a real SO follower calibration when you want the same normalized action/state semantics as a physical follower. Record that once with upstream LeRobot, then point `--robot.calibration_dir` at the directory containing the follower JSON:
+
+```bash
+lerobot-calibrate \
+  --robot.type=so101_follower \
+  --robot.port=/dev/ttyACM1 \
+  --robot.id=my_robot
+```
+
+The physical leader has its own calibration path. If it is not calibrated yet, calibrate it separately before recording:
+
+```bash
+lerobot-calibrate \
+  --teleop.type=so101_leader \
+  --teleop.port=/dev/ttyACM0 \
+  --teleop.id=my_leader
+```
+
+For simulator-only tests, create an explicit synthetic follower calibration file:
+
+```python
+from pathlib import Path
+from so101_nexus.lerobot_adapter.synthetic_calibration import write_synthetic_calibration
+
+write_synthetic_calibration(Path("calibration"), "my_robot")
+```
+
+Synthetic calibration files use LeRobot's normal `MotorCalibration` schema and the SO101 motor ids `1..6`, but they are not a replacement for measured physical calibration data.
+
+The adapter is validated against the MuJoCo backend, reading simulator joint positions and writing actions through it.
+
+## Recording with the Gradio teleop app
+
+The Gradio recorder writes the same core schema by default: `action` and
+`observation.state` are six-element absolute joint vectors, body joints are in
+degrees, and the gripper is in `RANGE_0_100`. Camera features are stored as
+`observation.images.wrist` and `observation.images.overhead`.
+
+The recorder drives the simulator through `SimSOFollower.send_action()` and
+reads state through `SimSOFollower.get_observation()`, so `observation.state`
+is follower readback rather than the leader command echo. It creates a
+simulator-only calibration file automatically at
+`$HF_LEROBOT_CALIBRATION/robots/sim_so_follower/teleop_sim.json` when missing.
+
+## Decoding a recorded dataset back to simulator radians
+
+The recorded six-vectors mix units, and `meta/info.json` does not signal the
+split: body joints `shoulder_pan` through `wrist_roll` are LeRobot degrees, but
+`gripper.pos` is `RANGE_0_100` (percent of jaw travel, not degrees). Decoding the
+whole vector with `np.deg2rad` runs cleanly yet silently corrupts only the
+gripper. At a typical grasp value `gripper.pos = 15` the correct angle is `0.113`
+rad, while `deg2rad(15)` gives `0.262` rad (about 8.5 degrees too open), which can
+teach a grip that never closes on the object.
+
+Use the public helpers to convert between a normalized dataset row and simulator
+joint radians without needing a calibration file:
+
+```python
+import numpy as np
+from so101_nexus import (
+    dataset_row_to_sim_qpos,
+    sim_qpos_to_dataset_row,
+)
+
+# row: a six-element action / observation.state vector from the dataset
+qpos_rad = dataset_row_to_sim_qpos(np.asarray(row))  # body deg2rad, gripper 0-100 -> [low, high]
+row_again = sim_qpos_to_dataset_row(qpos_rad)         # inverse, for replay
+```
+
+Both helpers accept NumPy arrays, torch tensors, or sequences of shape `(..., 6)`
+and return the same type, so batched dataset or policy tensors decode directly.
+They import without the `teleop` extra (no LeRobot dependency), so a training
+repo can use them directly. The gripper limits default to the SO101 jaw travel;
+pass `gripper_limits_rad=(float(env.action_space.low[-1]), float(env.action_space.high[-1]))`
+for the exact bounds of a specific environment. That indexing is only meaningful in
+the absolute control modes (`pd_joint_pos`, `pd_ee_pose`); every delta mode
+normalizes its action to `[-1, 1]`, so the last element carries no physical bound.
+The helpers assume the recording
+convention used by this library (synthetic calibration with `drive_mode=0`).
+
+## Using LeRobot processors with SO101-Nexus envs
+
+`LeRobotEnvWrapper` requires a `Dict` observation space. Configure at least one camera component before wrapping.
+
+```python
+import so101_nexus.mujoco  # noqa: F401
+from so101_nexus import JointPositions, PickConfig, WristCamera
+from so101_nexus.processors import make_lerobot_env
+
+config = PickConfig(
+    obs_mode="visual",
+    observations=[JointPositions(), WristCamera(width=224, height=224)],
+)
+env = make_lerobot_env("MuJoCoPickLift-v1", config=config, render_mode="rgb_array")
+obs, _ = env.reset()
+# obs is now {"observation.state": ..., "observation.images.wrist": ..., ...}
+```
+
+To customize the pipeline, build one yourself and pass it in:
+
+```python
+import gymnasium as gym
+from lerobot.processor import DataProcessorPipeline, RenameObservationsProcessorStep
+from so101_nexus import JointPositions, PickConfig, WristCamera
+from so101_nexus.processors import Hwc2ChwImageObservationStep, LeRobotEnvWrapper
+
+config = PickConfig(
+    obs_mode="visual",
+    observations=[JointPositions(), WristCamera(width=224, height=224)],
+)
+pipeline = DataProcessorPipeline(
+    steps=[
+        RenameObservationsProcessorStep(
+            rename_map={
+                "state": "observation.state",
+                "wrist_camera": "observation.images.wrist",
+            }
+        ),
+        Hwc2ChwImageObservationStep(image_keys=("observation.images.wrist",)),
+    ]
+)
+env = LeRobotEnvWrapper(gym.make("MuJoCoPickLift-v1", config=config), pipeline=pipeline)
+```
+
+## Custom processor pipelines
+
+The default leader pipeline (`make_default_leader_action_pipeline`) is still available for callers that need the historical conversion path: degrees from the leader, radians on the way to a raw simulator env, with a wrist-roll calibration shift. The Gradio recorder no longer uses that pipeline for dataset recording; it routes through `SimSOFollower` so stored actions and states stay in LeRobot SO follower units.

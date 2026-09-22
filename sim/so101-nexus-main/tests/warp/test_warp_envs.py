@@ -1,0 +1,708 @@
+"""Per-task contract and behavior tests for the new batched Warp envs."""
+
+import pytest
+
+pytestmark = pytest.mark.warp
+
+_ENVS = [
+    "WarpLookAt-v1",
+    "WarpMove-v1",
+    "WarpPickLift-v1",
+    "WarpPickAndPlace-v1",
+    "WarpStackCube-v1",
+]
+_DEFAULT_OBS_DIM = {
+    "WarpLookAt-v1": 23,
+    "WarpMove-v1": 22,
+    "WarpPickLift-v1": 31,
+    "WarpPickAndPlace-v1": 43,
+    "WarpStackCube-v1": 43,
+}
+
+
+def _make(env_id, num_envs=4, seed=0):
+    import gymnasium as gym
+
+    import so101_nexus.warp  # noqa: F401
+
+    return gym.make_vec(
+        env_id,
+        num_envs=num_envs,
+        device="cpu",
+        seed=seed,
+        vectorization_mode="vector_entry_point",
+    )
+
+
+@pytest.mark.parametrize("env_id", _ENVS)
+def test_construction_and_obs_shape(env_id):
+    import torch
+
+    envs = _make(env_id, num_envs=4)
+    obs, _ = envs.reset(seed=0)
+    assert obs.shape == (4, _DEFAULT_OBS_DIM[env_id])
+    assert obs.device.type == "cpu"
+    assert torch.isfinite(obs).all()
+    envs.close()
+
+
+@pytest.mark.parametrize("env_id", _ENVS)
+def test_step_shapes_and_finite_reward(env_id):
+    import torch
+
+    envs = _make(env_id, num_envs=4)
+    envs.reset(seed=0)
+    obs, reward, terminated, truncated, _ = envs.step(torch.zeros(envs.action_space.shape))
+    assert obs.shape == (4, _DEFAULT_OBS_DIM[env_id])
+    assert reward.shape == (4,)
+    assert reward.dtype == torch.float32
+    assert torch.isfinite(reward).all()
+    assert terminated.shape == (4,)
+    assert terminated.dtype == torch.bool
+    assert truncated.shape == (4,)
+    envs.close()
+
+
+def test_joint_velocities_are_the_live_batched_qvel():
+    """The JointVelocities columns are the per-world qvel gather, not a constant:
+    they grow while the arms are driven and decay once the targets are held."""
+    import torch
+
+    from so101_nexus.observations import JointVelocities
+    from so101_nexus.testing import component_slice
+
+    envs = _make("WarpPickLift-v1", num_envs=4)
+    envs.reset(seed=0)
+    inner = envs.unwrapped
+    sl = component_slice(envs, JointVelocities)
+    drive = torch.ones(envs.action_space.shape)
+    for _ in range(10):
+        obs, *_ = envs.step(drive)
+    torch.testing.assert_close(
+        obs[:, sl], inner.qvel.index_select(1, inner._dof_adr).to(torch.float32)
+    )
+    moving = float(obs[:, sl].abs().max())
+    assert moving > 1e-2
+
+    hold = torch.zeros(envs.action_space.shape)
+    for _ in range(60):
+        obs, *_ = envs.step(hold)
+    assert float(obs[:, sl].abs().max()) < moving
+    envs.close()
+
+
+def test_joint_velocities_expose_the_static_success_gate():
+    """The arm columns of JointVelocities are exactly what ``_is_robot_static``
+    reads, so a policy can observe the staticness term of the success gate."""
+    import torch
+
+    from so101_nexus.observations import JointVelocities
+    from so101_nexus.testing import component_slice
+
+    envs = _make("WarpPickAndPlace-v1", num_envs=4)
+    envs.reset(seed=0)
+    inner = envs.unwrapped
+    sl = component_slice(envs, JointVelocities)
+    threshold = inner.config.robot.static_vel_threshold
+    n_arm = int(inner._arm_dof_adr.numel())
+    seen = set()
+    actions = [torch.ones(envs.action_space.shape)] * 8 + [
+        torch.zeros(envs.action_space.shape)
+    ] * 60
+    for action in actions:
+        obs, *_ = envs.step(action)
+        from_obs = (obs[:, sl][:, :n_arm].abs() < threshold).all(dim=1)
+        assert torch.equal(from_obs, inner._is_robot_static())
+        seen.update(from_obs.tolist())
+    assert seen == {True, False}, "gate never flipped; assertion is vacuous"
+    envs.close()
+
+
+def test_control_dt_matches_the_mujoco_backend():
+    """``control_dt`` is the relabeling denominator, so a dataset recorded on one
+    backend must relabel identically against the other. Compare the two live
+    values rather than each backend against its own formula."""
+    import gymnasium as gym
+
+    import so101_nexus.mujoco  # noqa: F401 - registers the MuJoCo*-v1 env IDs
+
+    envs = _make("WarpPickLift-v1", num_envs=2)
+    mj_env = gym.make("MuJoCoPickLift-v1")
+    try:
+        assert envs.unwrapped.control_dt == pytest.approx(mj_env.unwrapped.control_dt)
+        assert envs.unwrapped.control_dt == pytest.approx(0.02)
+    finally:
+        mj_env.close()
+        envs.close()
+
+
+@pytest.mark.parametrize("env_id", _ENVS)
+def test_seeded_reset_is_deterministic(env_id):
+    import torch
+
+    a, _ = _make(env_id, seed=7).reset(seed=7)
+    b, _ = _make(env_id, seed=7).reset(seed=7)
+    assert torch.allclose(a, b)
+
+
+@pytest.mark.parametrize("env_id", _ENVS)
+def test_step_trajectory_is_deterministic(env_id):
+    import torch
+
+    a = _make(env_id, seed=1)
+    b = _make(env_id, seed=1)
+    a.reset(seed=1)
+    b.reset(seed=1)
+    action = torch.zeros(a.action_space.shape)
+    for _ in range(5):
+        oa, ra, ta, _, _ = a.step(action)
+        ob, rb, tb, _, _ = b.step(action)
+        assert torch.allclose(oa, ob)
+        assert torch.allclose(ra, rb)
+        assert torch.equal(ta, tb)
+
+
+def test_truncation_autoresets_world():
+    import torch
+
+    from so101_nexus.config import MoveConfig
+    from so101_nexus.warp.move_env import WarpMoveVectorEnv
+
+    env = WarpMoveVectorEnv(
+        num_envs=4, config=MoveConfig(), device="cpu", max_episode_steps=2, seed=0
+    )
+    env.reset(seed=0)
+    _, _, _, truncated, _ = env.step(torch.zeros((4, 6)))
+    assert not truncated.any()
+    _, _, _, truncated, _ = env.step(torch.zeros((4, 6)))
+    assert truncated.all()
+    assert (env._elapsed == 0).all()
+
+
+def test_reset_init_qpos_applied_and_clamped():
+    import torch
+
+    from so101_nexus.config import MoveConfig
+    from so101_nexus.warp.move_env import WarpMoveVectorEnv
+
+    env = WarpMoveVectorEnv(
+        num_envs=3, config=MoveConfig(reset_settle_frames=0), device="cpu", seed=0
+    )
+    env.reset(seed=0, options={"init_qpos": [0.0] * 6})
+    q = env._joint_qpos()
+    expected = torch.clamp(torch.zeros(3, 6), env._target_low, env._target_high)
+    assert torch.allclose(q, expected, atol=1e-5)
+
+
+def test_reset_init_pose_is_honored():
+    import numpy as np
+    import torch
+
+    from so101_nexus.config import MoveConfig, Pose, RobotConfig
+    from so101_nexus.warp.move_env import WarpMoveVectorEnv
+
+    pose = Pose(
+        name="p",
+        shoulder_pan_deg=15.0,
+        shoulder_lift_deg=-80.0,
+        elbow_flex_deg=80.0,
+        wrist_flex_deg=30.0,
+        wrist_roll_deg=0.0,
+        gripper_deg=-30.0,
+    )
+    env = WarpMoveVectorEnv(
+        num_envs=3,
+        config=MoveConfig(reset_settle_frames=0, robot=RobotConfig(init_pose=pose)),
+        device="cpu",
+        seed=0,
+    )
+    env.reset(seed=0)
+    expected = torch.as_tensor(
+        np.radians([15.0, -80.0, 80.0, 30.0, 0.0, -30.0]), dtype=torch.float32
+    )
+    expected = torch.clamp(expected.expand(3, 6), env._target_low, env._target_high)
+    assert torch.allclose(env._joint_qpos(), expected, atol=1e-4)
+
+
+def test_reset_bad_init_qpos_shape_raises():
+    from so101_nexus.config import MoveConfig
+    from so101_nexus.warp.move_env import WarpMoveVectorEnv
+
+    env = WarpMoveVectorEnv(num_envs=3, config=MoveConfig(), device="cpu", seed=0)
+    with pytest.raises(ValueError, match="init_qpos"):
+        env.reset(options={"init_qpos": [0.0] * 5})
+
+
+def test_every_declared_control_mode_passes_the_validation_gate():
+    """The Warp accept list tracks the shared ControlMode literal, so both
+    backends advertise the same modes rather than drifting apart."""
+    from typing import get_args
+
+    from so101_nexus.config import ControlMode
+    from so101_nexus.warp.base_env import SO101NexusWarpVectorEnv
+
+    assert set(get_args(ControlMode)) <= SO101NexusWarpVectorEnv._VALID_CONTROL_MODES
+
+
+def test_unknown_control_mode_raises():
+    """The gate still rejects modes outside the literal as the literal grows."""
+    from so101_nexus.config import MoveConfig
+    from so101_nexus.warp.move_env import WarpMoveVectorEnv
+
+    with pytest.raises(ValueError, match="control_mode must be one of"):
+        WarpMoveVectorEnv(
+            num_envs=2,
+            config=MoveConfig(),
+            control_mode="pd_ee_twist",
+            device="cpu",
+            seed=0,
+        )
+
+
+def test_move_initial_distance_equals_target():
+    import torch
+
+    from so101_nexus.config import MoveConfig
+    from so101_nexus.observations import JointPositions, TargetOffset
+    from so101_nexus.warp.move_env import WarpMoveVectorEnv
+
+    env = WarpMoveVectorEnv(
+        num_envs=4,
+        config=MoveConfig(
+            observations=[JointPositions(), TargetOffset()],
+            direction="up",
+            target_distance=0.1,
+            reset_settle_frames=0,
+        ),
+        device="cpu",
+        seed=0,
+    )
+    env.reset(seed=0)
+    dist = torch.linalg.norm(env._targets - env._tcp_pos(), dim=1)
+    assert torch.allclose(dist, torch.full((4,), 0.1), atol=1e-4)
+
+
+def test_lookat_reward_in_unit_interval_and_orientation_error():
+    import torch
+
+    from so101_nexus.config import LookAtConfig
+    from so101_nexus.warp.look_at_env import WarpLookAtVectorEnv
+
+    env = WarpLookAtVectorEnv(num_envs=6, config=LookAtConfig(), device="cpu", seed=0)
+    env.reset(seed=0)
+    _, reward, _, _, info = env.step(torch.zeros((6, 6)))
+    assert (reward >= 0.0).all()
+    assert (reward <= 1.0).all()
+    assert info["orientation_error"].shape == (6,)
+
+
+def test_pick_object_pose_obs_tracks_cube():
+    import torch
+
+    from so101_nexus.config import PickConfig
+    from so101_nexus.observations import ObjectPose
+    from so101_nexus.warp.pick_env import WarpPickLiftVectorEnv
+
+    env = WarpPickLiftVectorEnv(
+        num_envs=4, config=PickConfig(observations=[ObjectPose()]), device="cpu", seed=0
+    )
+    obs, _ = env.reset(seed=0)
+    assert obs.shape == (4, 7)
+    assert torch.allclose(obs[:, :3], env._target_pos(), atol=1e-5)
+
+
+@pytest.mark.parametrize("objects", [None, "043_phillips_screwdriver"])
+def test_pick_contact_budget_headroom_and_grasp_range(objects):
+    """The default budget must cover a decomposed pool, not just a single cube."""
+    import torch
+
+    from so101_nexus.config import PickConfig
+    from so101_nexus.objects import YCBObject
+    from so101_nexus.warp.pick_env import WarpPickLiftVectorEnv
+
+    if objects is not None:
+        pytest.importorskip("coacd", reason="multi-hull collision needs the decomp extra")
+    config = PickConfig() if objects is None else PickConfig(objects=YCBObject(objects))
+    env = WarpPickLiftVectorEnv(num_envs=6, config=config, device="cpu", seed=0)
+    env.reset(seed=0)
+    max_nacon = 0
+    info = {}
+    for _ in range(30):
+        action = torch.clamp(torch.rand((6, 6)), env._target_low, env._target_high)
+        action[:, 1] = env._target_high[1]  # drive the arm down toward the table
+        _, reward, _, _, info = env.step(action)
+        max_nacon = max(max_nacon, int(env._nacon_view[0]))
+        assert torch.isfinite(reward).all()
+    assert max_nacon < env.data.naconmax
+    grasp = info["is_grasped"]
+    assert ((grasp == 0.0) | (grasp == 1.0)).all()
+
+
+def test_pick_supports_heterogeneous_pool():
+    import torch
+
+    from so101_nexus.config import PickConfig
+    from so101_nexus.objects import CubeObject, GSOObject, YCBObject
+    from so101_nexus.warp.pick_env import WarpPickLiftVectorEnv
+
+    # Single YCB object: constructs, resets, steps with finite observations.
+    env = WarpPickLiftVectorEnv(
+        num_envs=2, config=PickConfig(objects=YCBObject("009_gelatin_box")), device="cpu", seed=0
+    )
+    obs, _ = env.reset(seed=0)
+    assert torch.isfinite(obs).all()
+    obs, reward, _, _, _ = env.step(torch.zeros((2, 6)))
+    assert torch.isfinite(obs).all()
+    assert torch.isfinite(reward).all()
+
+    # Single GSO object: constructs, resets, steps with finite observations.
+    env_gso = WarpPickLiftVectorEnv(
+        num_envs=2, config=PickConfig(objects=GSOObject("CoQ10")), device="cpu", seed=0
+    )
+    obs_gso, _ = env_gso.reset(seed=0)
+    assert torch.isfinite(obs_gso).all()
+    obs_gso, reward_gso, _, _, _ = env_gso.step(torch.zeros((2, 6)))
+    assert torch.isfinite(obs_gso).all()
+    assert torch.isfinite(reward_gso).all()
+
+    # Mixed pool with a decomposed model: every world's target mask is exactly
+    # the compiled mask of its selected slot, parts included.
+    pool = [
+        CubeObject(color="red"),
+        CubeObject(color="blue"),
+        YCBObject("009_gelatin_box"),
+        GSOObject("CoQ10"),
+    ]
+    env2 = WarpPickLiftVectorEnv(
+        num_envs=8, config=PickConfig(objects=pool, n_distractors=1), device="cpu", seed=1
+    )
+    obs2, _ = env2.reset(seed=1)
+    assert torch.isfinite(obs2).all()
+    assert torch.equal(env2._obj_geom_mask, env2._slot_geom_masks[env2._target_slot])
+    # Target selection differs across worlds for a multi-object pool.
+    assert env2._target_slot.unique().numel() > 1
+
+
+def test_pnp_target_varies_per_world_and_respects_separation():
+    import torch
+
+    from so101_nexus.config import PickAndPlaceConfig
+    from so101_nexus.warp.pick_and_place import WarpPickAndPlaceVectorEnv
+
+    env = WarpPickAndPlaceVectorEnv(num_envs=8, config=PickAndPlaceConfig(), device="cpu", seed=0)
+    env.reset(seed=0)
+    disc = env._target_disc_pos()
+    obj = env._target_pos()
+    assert (disc[:, :2].std(dim=0) > 1e-6).any()
+    sep = torch.linalg.norm(obj[:, :2] - disc[:, :2], dim=1)
+    assert (sep >= env.config.min_object_target_separation - 1e-6).all()
+    _, _, _, _, info = env.step(torch.zeros((8, 6)))
+    assert not info["success"].any()
+
+
+def test_pnp_cube_side_length_reaches_compiled_geometry():
+    import mujoco
+
+    from so101_nexus.config import PickAndPlaceConfig
+    from so101_nexus.warp.pick_and_place import WarpPickAndPlaceVectorEnv
+
+    env = WarpPickAndPlaceVectorEnv(
+        num_envs=2,
+        config=PickAndPlaceConfig(cube_side_length_mm=25.4),
+        device="cpu",
+        seed=0,
+    )
+    try:
+        env.reset(seed=0)
+        geom_id = mujoco.mj_name2id(env._mjm, mujoco.mjtObj.mjOBJ_GEOM, "pick_slot_0_geom")
+        assert env._mjm.geom_size[geom_id] == pytest.approx([0.0127] * 3)
+    finally:
+        env.close()
+
+
+def test_pnp_distractors_active_per_world_and_clear_of_the_disc():
+    """Each world activates exactly ``n_distractors`` pool slots inside the spawn
+    annulus, clear of the goal disc and the carried object, and target selection
+    stays inside the carried pool."""
+    import torch
+
+    from so101_nexus.config import PickAndPlaceConfig
+    from so101_nexus.warp.pick_and_place import WarpPickAndPlaceVectorEnv
+
+    cfg = PickAndPlaceConfig(n_distractors=2)
+    env = WarpPickAndPlaceVectorEnv(num_envs=8, config=cfg, device="cpu", seed=0)
+    env.reset(seed=0)
+    assert env._n_pool == 1  # carried pool only; distractors are never the target
+    assert env._d_pool == len(cfg.distractors)
+    assert bool((env._target_slot == 0).all())
+
+    disc_xy = env._target_disc_pos()[:, :2]
+    obj_xy = env._target_pos()[:, :2]
+    center = torch.tensor(cfg.spawn_center)
+    active = torch.zeros(8, env._d_pool, dtype=torch.bool)
+    for j in range(env._d_pool):
+        qa = int(env._slot_qadr[env._d_offset + j])
+        xy = env.qpos[:, qa : qa + 2]
+        radius = float(env._slot_bradius[env._d_offset + j])
+        on_table = torch.linalg.norm(xy - center, dim=1) <= cfg.spawn_max_radius + 1e-5
+        active[:, j] = on_table
+        # Hidden slots sit in the off-world band, so only active ones are checked.
+        disc_gap = torch.linalg.norm(xy - disc_xy, dim=1)[on_table]
+        assert bool((disc_gap >= cfg.min_object_target_separation + radius - 1e-5).all())
+        obj_gap = torch.linalg.norm(xy - obj_xy, dim=1)[on_table]
+        floor = cfg.min_object_separation + radius + float(env._slot_bradius[0])
+        assert bool((obj_gap >= floor - 1e-5).all())
+    assert bool((active.sum(dim=1) == cfg.n_distractors).all())
+    # Selection is per world, not one shared subset broadcast to every world.
+    assert not bool((active == active[0]).all())
+
+
+def test_pnp_target_index_pin_rejects_distractor_slots():
+    """``target_index`` is validated against the carried pool, so the trailing
+    distractor slots stay unpinnable."""
+    from so101_nexus.config import PickAndPlaceConfig
+    from so101_nexus.warp.pick_and_place import WarpPickAndPlaceVectorEnv
+
+    env = WarpPickAndPlaceVectorEnv(
+        num_envs=2, config=PickAndPlaceConfig(n_distractors=2), device="cpu", seed=0
+    )
+    with pytest.raises(ValueError, match="target_index"):
+        env.reset(seed=0, options={"target_index": 1})
+
+
+def test_pnp_default_scene_compiles_no_distractor_slots():
+    """n_distractors=0 compiles the carried pool alone, so the default contact
+    budget is unchanged even when a distractors pool is configured."""
+    from so101_nexus.config import PickAndPlaceConfig
+    from so101_nexus.warp.pick_and_place import WarpPickAndPlaceVectorEnv
+
+    cfg = PickAndPlaceConfig()
+    env = WarpPickAndPlaceVectorEnv(num_envs=2, config=cfg, device="cpu", seed=0)
+    assert env._d_pool == 0
+    assert env._n_total_slots == len(cfg.object_pool())
+    assert env._n_total_slots == env._n_pool
+
+
+def test_pnp_min_object_separation_is_a_live_knob():
+    """An exaggerated ``min_object_separation`` widens the enforced spacing across
+    every active slot, carried object included."""
+    import torch
+
+    from so101_nexus.config import PickAndPlaceConfig
+    from so101_nexus.warp.pick_and_place import WarpPickAndPlaceVectorEnv
+
+    cfg = PickAndPlaceConfig(n_distractors=1, min_object_separation=0.15)
+    env = WarpPickAndPlaceVectorEnv(num_envs=8, config=cfg, device="cpu", seed=0)
+    env.reset(seed=0)
+
+    center = torch.tensor(cfg.spawn_center)
+    qa = int(env._slot_qadr[env._d_offset])
+    xy = env.qpos[:, qa : qa + 2]
+    radius = float(env._slot_bradius[env._d_offset])
+    on_table = torch.linalg.norm(xy - center, dim=1) <= cfg.spawn_max_radius + 1e-5
+    assert bool(on_table.any())
+
+    gap = torch.linalg.norm(xy - env._target_pos()[:, :2], dim=1)[on_table]
+    floor = cfg.min_object_separation + radius + float(env._slot_bradius[0])
+    assert bool((gap >= floor - 1e-5).all())
+
+
+def test_primitive_supports_central_end_effector_pose():
+    import torch
+
+    from so101_nexus.config import MoveConfig
+    from so101_nexus.observations import EndEffectorPose, JointPositions
+    from so101_nexus.warp.move_env import WarpMoveVectorEnv
+
+    env = WarpMoveVectorEnv(
+        num_envs=3,
+        config=MoveConfig(observations=[JointPositions(), EndEffectorPose()]),
+        device="cpu",
+        seed=0,
+    )
+    obs, _ = env.reset(seed=0)
+    assert obs.shape == (3, 13)  # JointPositions(6) + EndEffectorPose(7)
+    assert torch.allclose(obs[:, 6:13], env._get_tcp_pose7(), atol=1e-5)
+
+
+def test_primitive_grasp_state_is_zero_without_object():
+    import torch
+
+    from so101_nexus.config import LookAtConfig
+    from so101_nexus.observations import GraspState, JointPositions
+    from so101_nexus.warp.look_at_env import WarpLookAtVectorEnv
+
+    env = WarpLookAtVectorEnv(
+        num_envs=4,
+        config=LookAtConfig(observations=[JointPositions(), GraspState()]),
+        device="cpu",
+        seed=0,
+    )
+    obs, _ = env.reset(seed=0)
+    assert obs.shape == (4, 7)  # JointPositions(6) + GraspState(1)
+    assert torch.equal(obs[:, 6], torch.zeros(4))
+
+
+def test_manipulation_central_obs_routed_by_base():
+    import torch
+
+    from so101_nexus.config import PickConfig
+    from so101_nexus.observations import EndEffectorPose, GraspState
+    from so101_nexus.warp.pick_env import WarpPickLiftVectorEnv
+
+    env = WarpPickLiftVectorEnv(
+        num_envs=2,
+        config=PickConfig(observations=[EndEffectorPose(), GraspState()]),
+        device="cpu",
+        seed=0,
+    )
+    obs, _ = env.reset(seed=0)
+    assert obs.shape == (2, 8)  # EndEffectorPose(7) + GraspState(1)
+    assert torch.allclose(obs[:, :7], env._get_tcp_pose7(), atol=1e-5)
+
+
+def test_flat_state_vector_preserves_component_list_order():
+    """Warp flat state vector concatenates the non-camera components in
+    ``config.observations`` order. The observation list does not touch the seeded
+    reset RNG or physics, so world 0's slices of a permuted-list obs must equal the
+    single-component configs at the same seed. A builder that sorted or reordered
+    the list would misalign the segments and fail."""
+    import torch
+
+    from so101_nexus.config import TouchConfig
+    from so101_nexus.observations import (
+        EndEffectorPose,
+        GraspState,
+        JointPositions,
+        ObjectOffset,
+        ObjectPose,
+    )
+    from so101_nexus.warp.touch_env import WarpTouchVectorEnv
+
+    sizes = {
+        JointPositions: 6,
+        EndEffectorPose: 7,
+        GraspState: 1,
+        ObjectPose: 7,
+        ObjectOffset: 3,
+    }
+    perm = [ObjectOffset, JointPositions, GraspState, EndEffectorPose, ObjectPose]
+
+    def _world0_obs(components):
+        env = WarpTouchVectorEnv(
+            num_envs=2,
+            config=TouchConfig(observations=[cls() for cls in components]),
+            device="cpu",
+            seed=0,
+        )
+        obs, _ = env.reset(seed=0)
+        return obs[0]
+
+    full = _world0_obs(perm)
+    offset = 0
+    for cls in perm:
+        size = sizes[cls]
+        single = _world0_obs([cls])
+        segment = full[offset : offset + size]
+        assert torch.allclose(segment, single, atol=1e-5), (
+            f"{cls.__name__} at flat slice [{offset}:{offset + size}] does not match its "
+            f"single-component obs -- Warp components not concatenated in list order"
+        )
+        offset += size
+    assert offset == full.shape[0]
+
+
+def test_pick_and_place_reward_no_dwelling_when_hovering():
+    """Regression coverage for the reward-hacking trap in IMPROVEMENTS.md
+    ("RewardConfig's dwelling-reward structure invites the exact exploit we
+    hit"): repeated ``_compute_reward_terminated`` calls at an unchanged
+    "grasped, hovering above the goal" state pay ~0 further task_objective
+    reward after the first (a potential-shaping delta, not the raw
+    ``Phi_place`` value); the first observation of that state still earns
+    real, one-time credit. ``_is_grasping`` is monkeypatched to a constant
+    True so the test does not depend on driving a real contact-based grasp
+    through physics, and the object is placed directly via ``qpos`` at a
+    fixed "hovering above the goal, not yet lowered" pose, unchanged between
+    the two reward calls.
+    """
+    import torch
+
+    from so101_nexus.config import PickAndPlaceConfig
+    from so101_nexus.warp.pick_and_place import WarpPickAndPlaceVectorEnv
+
+    env = WarpPickAndPlaceVectorEnv(num_envs=2, config=PickAndPlaceConfig(), device="cpu", seed=0)
+    env.reset(seed=0)
+    env._is_grasping = lambda: torch.ones(2)  # force grasped, no real contact needed
+
+    target_pos = env._target_disc_pos()
+    rows, qa = env._world_rows, env._target_qadr
+    env.qpos[rows, qa] = target_pos[:, 0] + 0.05
+    env.qpos[rows, qa + 1] = target_pos[:, 1]
+    env.qpos[rows, qa + 2] = env._initial_obj_z + 0.05  # elevated, not lowered
+
+    zero = torch.zeros(2)
+    reward1, _, _ = env._compute_reward_terminated(zero, zero)
+    reward2, _, info2 = env._compute_reward_terminated(zero, zero)
+
+    # The reward a fully-zero-delta formula would pay on the second call --
+    # what the actual (delta-shaped) reward must match, since reach, grasp,
+    # and task potential all held steady between the two identical hover
+    # snapshots (reaching/grasping are potential-shaped deltas too).
+    # This assertion would fail
+    # against the pre-fix raw-value formula, which pays the same nonzero
+    # reaching/grasping/task_objective credit on both calls.
+    expected_no_dwelling_credit = env.config.reward.compute(
+        reach_progress=torch.zeros(2),
+        is_grasped=torch.zeros(2),
+        task_progress=torch.zeros(2),
+        is_complete=info2["success"],
+    )
+    assert torch.allclose(reward2, expected_no_dwelling_credit, atol=1e-5)
+    # The first observation of this state, from the reset baseline
+    # (Phi(s0) ~= 0, pre-grasp), earns real one-time credit.
+    assert bool((reward1 > reward2 + 1e-3).all())
+
+
+def test_pick_lift_reward_no_dwelling_at_fixed_height():
+    """Repeated ``_compute_reward_terminated`` calls at an unchanged lift height
+    pay ~0 further task_objective reward (a potential-shaping delta, not the
+    raw ``lift_progress`` value); the first observation of that height still
+    earns real, one-time credit. Companion to the pick-and-place regression
+    above for the same family of task ("dwelling" pick-lift's task_progress).
+    ``_is_grasping`` is monkeypatched to a constant True (a real contact-based
+    grasp is not needed to exercise the delta-shaping state machine), since a
+    call made right after reset would otherwise gate ``lift_progress`` to 0
+    regardless of whether the fix is present, making the test pass vacuously.
+    """
+    import torch
+
+    from so101_nexus.config import PickConfig
+    from so101_nexus.warp.pick_env import WarpPickLiftVectorEnv
+
+    env = WarpPickLiftVectorEnv(num_envs=2, config=PickConfig(), device="cpu", seed=0)
+    env.reset(seed=0)
+    env._is_grasping = lambda: torch.ones(2)  # force grasped, no real contact needed
+
+    rows, qa = env._world_rows, env._target_qadr
+    env.qpos[rows, qa + 2] = env._initial_obj_z + 0.05  # lift the object, held fixed
+
+    zero = torch.zeros(2)
+    reward1, _, _ = env._compute_reward_terminated(zero, zero)
+    reward2, _, info2 = env._compute_reward_terminated(zero, zero)
+
+    # The reward a fully-zero-delta formula would pay on the second call --
+    # what the actual (delta-shaped) reward must match, since reach, grasp,
+    # and lift potential all held steady between the two identical snapshots
+    # (reaching/grasping are potential-shaped deltas too). This assertion would fail
+    # against the pre-fix raw-value formula, which pays the same nonzero
+    # reaching/grasping/task_objective credit on both calls.
+    expected_no_dwelling_credit = env.config.reward.compute(
+        reach_progress=torch.zeros(2),
+        is_grasped=torch.zeros(2),
+        task_progress=torch.zeros(2),
+        is_complete=info2["success"],
+    )
+    assert torch.allclose(reward2, expected_no_dwelling_credit, atol=1e-5)
+    # The first observation of this lift height, from the reset baseline
+    # (Phi(s0) == 0, ungrasped), earns real one-time credit.
+    assert bool((reward1 > reward2 + 1e-3).all())

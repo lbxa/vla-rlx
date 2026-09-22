@@ -1,0 +1,672 @@
+"""Tests for teleop dataset field selection, features, and frame builders."""
+
+from __future__ import annotations
+
+import builtins
+import importlib
+import sys
+import types
+
+import numpy as np
+import pytest
+
+from so101_nexus.config import SO101_JOINT_NAMES
+from so101_nexus.teleop.dataset import (
+    DONE_KEY,
+    ENV_STATE_KEY,
+    OVERHEAD_KEY,
+    REWARD_COMPONENT_FEATURE_KEYS,
+    REWARD_KEY,
+    SCALAR_FEATURE,
+    SIDE_KEY,
+    SUCCESS_KEY,
+    WRIST_KEY,
+    FieldSelection,
+    build_features,
+    build_frame,
+)
+
+
+def _motor_features() -> dict[str, type]:
+    return {f"{name}.pos": float for name in SO101_JOINT_NAMES}
+
+
+def _follower_features(
+    wrist_shape: tuple[int, int, int] = (480, 480, 3),
+    overhead_shape: tuple[int, int, int] = (480, 480, 3),
+) -> dict[str, object]:
+    return {**_motor_features(), "wrist": wrist_shape, "overhead": overhead_shape}
+
+
+def test_image_keys_are_lerobot_canonical() -> None:
+    assert WRIST_KEY == "observation.images.wrist"
+    assert OVERHEAD_KEY == "observation.images.overhead"
+    assert SIDE_KEY == "observation.images.side"
+
+
+def test_field_selection_defaults_side_image_off() -> None:
+    # The side view is opt-in; the default schema must stay byte-identical
+    # for existing recordings.
+    assert FieldSelection().side_image is False
+
+
+def test_build_features_default_omits_side_key() -> None:
+    features = build_features(FieldSelection(), _follower_features(), _motor_features())
+    assert SIDE_KEY not in features
+
+
+def test_build_features_includes_side_when_selected() -> None:
+    sel = FieldSelection(side_image=True)
+    follower_features = {**_follower_features(), "side": (240, 320, 3)}
+
+    features = build_features(sel, follower_features, _motor_features())
+
+    assert features[SIDE_KEY]["dtype"] == "video"
+    assert features[SIDE_KEY]["shape"] == (240, 320, 3)
+    assert features[SIDE_KEY]["names"] == ["height", "width", "channels"]
+
+
+def test_build_features_requires_side_camera_feature() -> None:
+    sel = FieldSelection(side_image=True)
+
+    with pytest.raises(ValueError, match="side"):
+        build_features(sel, _follower_features(), _motor_features())
+
+
+def test_build_frame_writes_side_image_when_selected() -> None:
+    sel = FieldSelection(
+        wrist_image=False, overhead_image=False, side_image=True, environment_state=False
+    )
+    side = np.full((48, 64, 3), 7, dtype=np.uint8)
+
+    frame = build_frame(
+        sel,
+        state=np.zeros(6, dtype=np.float32),
+        action=np.zeros(6, dtype=np.float32),
+        task="t",
+        wrist_image=None,
+        overhead_image=None,
+        side_image=side,
+    )
+
+    np.testing.assert_array_equal(frame[SIDE_KEY], side)
+
+
+def test_build_frame_raises_when_side_selected_but_missing() -> None:
+    sel = FieldSelection(
+        wrist_image=False, overhead_image=False, side_image=True, environment_state=False
+    )
+
+    with pytest.raises(ValueError, match="side_image selected"):
+        build_frame(
+            sel,
+            state=np.zeros(6, dtype=np.float32),
+            action=np.zeros(6, dtype=np.float32),
+            task="t",
+            wrist_image=None,
+            overhead_image=None,
+        )
+
+
+def test_build_frame_omits_side_image_when_deselected() -> None:
+    sel = FieldSelection(wrist_image=False, overhead_image=False, environment_state=False)
+    # side frame supplied but not selected -> key must be absent.
+    frame = build_frame(
+        sel,
+        state=np.zeros(6, dtype=np.float32),
+        action=np.zeros(6, dtype=np.float32),
+        task="t",
+        wrist_image=None,
+        overhead_image=None,
+        side_image=np.zeros((8, 8, 3), dtype=np.uint8),
+    )
+    assert SIDE_KEY not in frame
+
+
+def test_field_selection_forces_state_and_action_on() -> None:
+    sel = FieldSelection(
+        wrist_image=False,
+        overhead_image=False,
+        task=False,
+    )
+    assert sel.state is True
+    assert sel.action is True
+
+
+def test_build_features_default_contains_all_keys() -> None:
+    sel = FieldSelection()
+    features = build_features(sel, _follower_features(), _motor_features())
+
+    assert set(features) == {
+        "observation.state",
+        "action",
+        REWARD_KEY,
+        SUCCESS_KEY,
+        DONE_KEY,
+        WRIST_KEY,
+        OVERHEAD_KEY,
+        *REWARD_COMPONENT_FEATURE_KEYS,
+    }
+    assert features["observation.state"]["shape"] == (len(SO101_JOINT_NAMES),)
+    assert features["observation.state"]["dtype"] == "float32"
+    assert features["observation.state"]["names"] == [f"{name}.pos" for name in SO101_JOINT_NAMES]
+    assert features["action"]["shape"] == (len(SO101_JOINT_NAMES),)
+    assert features["action"]["dtype"] == "float32"
+    assert features["action"]["names"] == [f"{name}.pos" for name in SO101_JOINT_NAMES]
+    assert features[WRIST_KEY]["dtype"] == "video"
+    assert features[WRIST_KEY]["shape"] == (480, 480, 3)
+    assert features[WRIST_KEY]["names"] == ["height", "width", "channels"]
+    assert features[OVERHEAD_KEY]["shape"] == (480, 480, 3)
+
+
+def test_build_features_omits_deselected_image_keys() -> None:
+    sel = FieldSelection(wrist_image=True, overhead_image=False)
+    features = build_features(
+        sel,
+        _follower_features(wrist_shape=(240, 320, 3), overhead_shape=(360, 640, 3)),
+        _motor_features(),
+    )
+
+    assert WRIST_KEY in features
+    assert OVERHEAD_KEY not in features
+    assert features[WRIST_KEY]["shape"] == (240, 320, 3)
+
+    assert "observation.state" in features
+    assert "action" in features
+    assert REWARD_KEY in features
+    assert features[REWARD_KEY] == {"dtype": "float32", "shape": (1,), "names": None}
+
+
+def test_build_features_requires_selected_camera_feature() -> None:
+    sel = FieldSelection(wrist_image=True, overhead_image=False)
+    follower_features = _motor_features()
+
+    with pytest.raises(ValueError, match="wrist"):
+        build_features(sel, follower_features, _motor_features())
+
+
+def test_build_frame_default_includes_all_selected_fields() -> None:
+    sel = FieldSelection()
+    state = np.zeros(6, dtype=np.float32)
+    action = np.ones(6, dtype=np.float32)
+    wrist = np.zeros((64, 64, 3), dtype=np.uint8)
+    overhead = np.ones((64, 64, 3), dtype=np.uint8) * 255
+    env_state = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+
+    frame = build_frame(
+        sel,
+        state=state,
+        action=action,
+        task="pick the cube",
+        reward=0.25,
+        wrist_image=wrist,
+        overhead_image=overhead,
+        env_state=env_state,
+    )
+
+    assert set(frame) == {
+        "observation.state",
+        "action",
+        REWARD_KEY,
+        SUCCESS_KEY,
+        DONE_KEY,
+        ENV_STATE_KEY,
+        WRIST_KEY,
+        OVERHEAD_KEY,
+        "task",
+        *REWARD_COMPONENT_FEATURE_KEYS,
+    }
+    assert frame["task"] == "pick the cube"
+    assert frame[REWARD_KEY].dtype == np.float32
+    assert frame[REWARD_KEY].shape == (1,)
+    np.testing.assert_allclose(frame[REWARD_KEY], [0.25])
+    np.testing.assert_allclose(frame[ENV_STATE_KEY], [1.0, 2.0, 3.0])
+    # reward_components defaults to all-zero when the caller supplies none.
+    for key in REWARD_COMPONENT_FEATURE_KEYS:
+        assert frame[key].dtype == np.float32
+        np.testing.assert_array_equal(frame[key], [0.0])
+
+
+def test_build_frame_writes_reward_components_when_provided() -> None:
+    sel = FieldSelection(wrist_image=False, overhead_image=False, environment_state=False)
+    frame = build_frame(
+        sel,
+        state=np.zeros(6, dtype=np.float32),
+        action=np.zeros(6, dtype=np.float32),
+        task="t",
+        reward=0.7,
+        reward_components={
+            "reaching": 0.2,
+            "grasping": 0.15,
+            "task_objective": 0.3,
+            "completion_bonus": 0.05,
+            "action_delta_penalty": -0.0,
+            "energy_penalty": -0.0,
+        },
+        wrist_image=None,
+        overhead_image=None,
+    )
+
+    np.testing.assert_allclose(frame["reward_components.reaching"], [0.2])
+    np.testing.assert_allclose(frame["reward_components.grasping"], [0.15])
+    np.testing.assert_allclose(frame["reward_components.task_objective"], [0.3])
+    np.testing.assert_allclose(frame["reward_components.completion_bonus"], [0.05])
+
+
+def test_build_frame_reward_components_missing_keys_default_to_zero() -> None:
+    """A partial mapping (e.g. a single-objective task's inert bucket) fills zeros."""
+    sel = FieldSelection(wrist_image=False, overhead_image=False, environment_state=False)
+    frame = build_frame(
+        sel,
+        state=np.zeros(6, dtype=np.float32),
+        action=np.zeros(6, dtype=np.float32),
+        task="t",
+        reward_components={"reaching": 0.4},
+        wrist_image=None,
+        overhead_image=None,
+    )
+
+    np.testing.assert_allclose(frame["reward_components.reaching"], [0.4])
+    np.testing.assert_array_equal(frame["reward_components.grasping"], [0.0])
+
+
+def test_build_frame_keeps_task_when_task_deselected_for_lerobot_v3() -> None:
+    sel = FieldSelection(
+        wrist_image=False, overhead_image=False, environment_state=False, task=False
+    )
+    state = np.zeros(6, dtype=np.float32)
+    action = np.zeros(6, dtype=np.float32)
+
+    frame = build_frame(
+        sel,
+        state=state,
+        action=action,
+        task="required by LeRobotDataset.add_frame",
+        wrist_image=None,
+        overhead_image=None,
+    )
+
+    assert set(frame) == {
+        "observation.state",
+        "action",
+        REWARD_KEY,
+        SUCCESS_KEY,
+        DONE_KEY,
+        "task",
+        *REWARD_COMPONENT_FEATURE_KEYS,
+    }
+    assert frame["task"] == "required by LeRobotDataset.add_frame"
+    assert frame[REWARD_KEY].shape == (1,)
+
+
+def test_build_frame_raises_when_selected_image_missing() -> None:
+    sel = FieldSelection(wrist_image=True)
+    with pytest.raises(ValueError, match="wrist"):
+        build_frame(
+            sel,
+            state=np.zeros(6, dtype=np.float32),
+            action=np.zeros(6, dtype=np.float32),
+            task="t",
+            wrist_image=None,
+            overhead_image=None,
+        )
+
+
+def test_field_selection_defaults_environment_state_on() -> None:
+    # The privileged channel is recorded by default; flipping this silently
+    # drops observation.environment_state from every dataset.
+    assert FieldSelection().environment_state is True
+
+
+def test_build_features_declares_env_state_when_selected_with_names() -> None:
+    sel = FieldSelection(wrist_image=False, overhead_image=False)
+    names = ["object_pose_0", "object_pose_1", "grasp_state_0"]
+    features = build_features(sel, _follower_features(), _motor_features(), env_state_names=names)
+
+    assert features[ENV_STATE_KEY] == {
+        "dtype": "float32",
+        "shape": (3,),
+        "names": names,
+    }
+    # success and done are always declared as the canonical scalar feature.
+    assert (
+        features[SUCCESS_KEY]
+        == SCALAR_FEATURE
+        == {
+            "dtype": "float32",
+            "shape": (1,),
+            "names": None,
+        }
+    )
+    assert features[DONE_KEY] == SCALAR_FEATURE
+
+
+@pytest.mark.parametrize(
+    "selection, env_state_names",
+    [
+        # selection on but no names -> env_state channel not declarable.
+        (FieldSelection(wrist_image=False, overhead_image=False), []),
+        # names present but selection off -> user opted out.
+        (
+            FieldSelection(wrist_image=False, overhead_image=False, environment_state=False),
+            ["object_pose_0"],
+        ),
+    ],
+)
+def test_build_features_omits_env_state(selection, env_state_names) -> None:
+    features = build_features(
+        selection,
+        _follower_features(),
+        _motor_features(),
+        env_state_names=env_state_names,
+    )
+
+    assert ENV_STATE_KEY not in features
+    # reward/success/done stay regardless of the env_state decision.
+    assert SUCCESS_KEY in features
+    assert DONE_KEY in features
+
+
+def test_build_frame_emits_success_and_done_as_float32_scalars() -> None:
+    sel = FieldSelection(wrist_image=False, overhead_image=False, environment_state=False)
+    frame = build_frame(
+        sel,
+        state=np.zeros(6, dtype=np.float32),
+        action=np.zeros(6, dtype=np.float32),
+        task="t",
+        success=1.0,
+        done=1.0,
+        wrist_image=None,
+        overhead_image=None,
+    )
+
+    for key in (SUCCESS_KEY, DONE_KEY):
+        assert frame[key].dtype == np.float32
+        assert frame[key].shape == (1,)
+    # Values propagate (not hardcoded).
+    np.testing.assert_array_equal(frame[SUCCESS_KEY], [1.0])
+    np.testing.assert_array_equal(frame[DONE_KEY], [1.0])
+
+
+def test_build_frame_success_and_done_default_to_zero() -> None:
+    sel = FieldSelection(wrist_image=False, overhead_image=False, environment_state=False)
+    frame = build_frame(
+        sel,
+        state=np.zeros(6, dtype=np.float32),
+        action=np.zeros(6, dtype=np.float32),
+        task="t",
+        wrist_image=None,
+        overhead_image=None,
+    )
+
+    np.testing.assert_array_equal(frame[SUCCESS_KEY], [0.0])
+    np.testing.assert_array_equal(frame[DONE_KEY], [0.0])
+
+
+def test_build_frame_writes_env_state_when_selected() -> None:
+    sel = FieldSelection(wrist_image=False, overhead_image=False, environment_state=True)
+    env_state = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+    frame = build_frame(
+        sel,
+        state=np.zeros(6, dtype=np.float32),
+        action=np.zeros(6, dtype=np.float32),
+        task="t",
+        env_state=env_state,
+        wrist_image=None,
+        overhead_image=None,
+    )
+
+    assert frame[ENV_STATE_KEY].dtype == np.float32
+    np.testing.assert_array_equal(frame[ENV_STATE_KEY], [1.0, 2.0, 3.0])
+
+
+def test_build_frame_raises_when_env_state_selected_but_missing() -> None:
+    sel = FieldSelection(wrist_image=False, overhead_image=False, environment_state=True)
+    with pytest.raises(ValueError, match="environment_state selected but no privileged state"):
+        build_frame(
+            sel,
+            state=np.zeros(6, dtype=np.float32),
+            action=np.zeros(6, dtype=np.float32),
+            task="t",
+            env_state=None,
+            wrist_image=None,
+            overhead_image=None,
+        )
+
+
+def test_build_frame_omits_env_state_when_deselected() -> None:
+    sel = FieldSelection(wrist_image=False, overhead_image=False, environment_state=False)
+    # env_state supplied but not selected -> key must be absent.
+    frame = build_frame(
+        sel,
+        state=np.zeros(6, dtype=np.float32),
+        action=np.zeros(6, dtype=np.float32),
+        task="t",
+        env_state=np.array([1.0, 2.0], dtype=np.float32),
+        wrist_image=None,
+        overhead_image=None,
+    )
+
+    assert ENV_STATE_KEY not in frame
+
+
+def _reload_dataset_module():
+    """Re-import teleop.dataset so the import shim runs against current stubs."""
+    sys.modules.pop("so101_nexus.teleop.dataset", None)
+    return importlib.import_module("so101_nexus.teleop.dataset")
+
+
+def _install_stub(monkeypatch, module_path: str, attr: str, value) -> None:
+    parent_path, _, leaf = module_path.rpartition(".")
+    stub = types.ModuleType(module_path)
+    setattr(stub, attr, value)
+    monkeypatch.setitem(sys.modules, module_path, stub)
+
+    parent = sys.modules.get(parent_path)
+    if parent is not None:
+        monkeypatch.setattr(parent, leaf, stub, raising=False)
+
+
+def test_dataset_module_import_does_not_require_lerobot(monkeypatch) -> None:
+    """MuJoCo-only installs import teleop.app without installing LeRobot."""
+    with monkeypatch.context() as mp:
+        for name in list(sys.modules):
+            if name == "lerobot" or name.startswith("lerobot."):
+                mp.delitem(sys.modules, name, raising=False)
+
+        real_import = builtins.__import__
+
+        def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == "lerobot" or name.startswith("lerobot."):
+                raise ModuleNotFoundError("simulated missing lerobot")
+            return real_import(name, globals, locals, fromlist, level)
+
+        mp.setattr(builtins, "__import__", fake_import)
+
+        module = _reload_dataset_module()
+
+        assert module.FieldSelection().state is True
+    _reload_dataset_module()
+
+
+def test_dataset_prefers_lerobot_feature_utils(monkeypatch) -> None:
+    """When LeRobot exposes feature_utils.hw_to_dataset_features, use it."""
+    with monkeypatch.context() as mp:
+        sentinel = lambda *a, **kw: {"sentinel": "feature_utils"}  # noqa: E731
+        _install_stub(
+            mp,
+            "lerobot.datasets.feature_utils",
+            "hw_to_dataset_features",
+            sentinel,
+        )
+
+        module = _reload_dataset_module()
+
+        assert module._hw_to_dataset_features() is sentinel
+    _reload_dataset_module()
+
+
+def test_dataset_falls_back_to_lerobot_datasets_utils(monkeypatch) -> None:
+    """When feature_utils is absent, fall back to the LeRobot 0.5.0 path."""
+    with monkeypatch.context() as mp:
+        sentinel = lambda *a, **kw: {"sentinel": "datasets.utils"}  # noqa: E731
+        mp.delitem(sys.modules, "lerobot.datasets.feature_utils", raising=False)
+        _install_stub(mp, "lerobot.datasets.utils", "hw_to_dataset_features", sentinel)
+
+        real_import = builtins.__import__
+
+        def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == "lerobot.datasets.feature_utils":
+                raise ImportError("simulated missing feature_utils")
+            return real_import(name, globals, locals, fromlist, level)
+
+        mp.setattr(builtins, "__import__", fake_import)
+
+        module = _reload_dataset_module()
+
+        assert module._hw_to_dataset_features() is sentinel
+    _reload_dataset_module()
+
+
+def _reward_buffer() -> dict:
+    return {"reward": [np.array([0.25], dtype=np.float32), np.array([1.5], dtype=np.float32)]}
+
+
+def _patch_parent_save_episode(monkeypatch) -> dict:
+    """Stub ``LeRobotDataset.save_episode`` so the override is tested in isolation."""
+    from lerobot.datasets.lerobot_dataset import LeRobotDataset
+
+    seen: dict = {}
+
+    def stub(self, episode_data=None, parallel_encoding=True):
+        seen["episode_data"] = episode_data
+
+    monkeypatch.setattr(LeRobotDataset, "save_episode", stub, raising=True)
+    return seen
+
+
+def _blank_recording_obj(cls):
+    """Construct a recording instance without LeRobot's heavy ``create()``.
+
+    ``_is_finalized`` and no-op writer hooks keep ``LeRobotDataset.__del__``
+    quiet at GC time across both 0.5.x layouts.
+    """
+    obj = cls.__new__(cls)
+    obj._is_finalized = True
+    obj.writer = None
+    return obj
+
+
+def test_save_recorded_episode_writes_reproducibility_metadata(tmp_path) -> None:
+    import json
+    import types
+
+    from so101_nexus.teleop.dataset import save_recorded_episode
+
+    dataset = types.SimpleNamespace(root=tmp_path, num_episodes=3, save_episode=lambda: None)
+    metadata = {
+        "env_id": "MuJoCoTouch-v1",
+        "seed": 42,
+        "task_description": "Touch",
+        "initial_sim_state": {"qpos": [0.1, 0.2]},
+    }
+
+    save_recorded_episode(dataset, reproducibility=metadata)
+
+    path = tmp_path / "meta" / "reproducibility" / "episode_000003.json"
+    assert json.loads(path.read_text()) == metadata
+
+
+def test_save_recorded_episode_requires_root_for_metadata() -> None:
+    import types
+
+    from so101_nexus.teleop.dataset import save_recorded_episode
+
+    dataset = types.SimpleNamespace(num_episodes=0, save_episode=lambda: None)
+
+    with pytest.raises(AttributeError, match="root"):
+        save_recorded_episode(dataset, reproducibility={"seed": 1})
+
+
+def test_save_recorded_episode_serializes_all_metadata_before_writing(tmp_path) -> None:
+    import types
+
+    from so101_nexus.teleop.dataset import save_recorded_episode
+
+    dataset = types.SimpleNamespace(root=tmp_path, num_episodes=0, save_episode=lambda: None)
+
+    with pytest.raises(ValueError, match="Out of range float values"):
+        save_recorded_episode(
+            dataset,
+            {"threshold": 0.1},
+            reproducibility={"invalid": float("nan")},
+        )
+
+    assert not (tmp_path / "meta").exists()
+
+
+def test_save_recorded_episode_rolls_back_first_file_when_second_write_fails(tmp_path) -> None:
+    import types
+
+    from so101_nexus.teleop.dataset import save_recorded_episode
+
+    dataset = types.SimpleNamespace(root=tmp_path, num_episodes=2, save_episode=lambda: None)
+    second = tmp_path / "meta" / "reproducibility" / "episode_000002.json"
+    second.parent.mkdir(parents=True)
+    second.write_text("existing")
+
+    with pytest.raises(FileExistsError):
+        save_recorded_episode(dataset, {"threshold": 0.1}, reproducibility={"seed": 4})
+
+    first = tmp_path / "meta" / "placement_contracts" / "episode_000002.json"
+    assert not first.exists()
+    assert second.read_text() == "existing"
+
+
+def test_save_recorded_episode_without_metadata_does_not_require_root() -> None:
+    import types
+
+    from so101_nexus.teleop.dataset import save_recorded_episode
+
+    calls: list[None] = []
+    dataset = types.SimpleNamespace(save_episode=lambda: calls.append(None))
+
+    save_recorded_episode(dataset)
+
+    assert calls == [None]
+
+
+def test_reward_squeeze_finds_dataset_buffer_lerobot_050(monkeypatch) -> None:
+    """0.5.0 keeps the in-progress buffer on the dataset itself."""
+    pytest.importorskip("lerobot")
+    from so101_nexus.teleop.dataset import _make_reward_scalar_dataset_cls
+
+    seen = _patch_parent_save_episode(monkeypatch)
+    obj = _blank_recording_obj(_make_reward_scalar_dataset_cls())
+    buf = _reward_buffer()
+    obj.episode_buffer = buf
+
+    obj.save_episode()
+
+    assert seen["episode_data"] is None
+    assert buf["reward"] == [pytest.approx(0.25), pytest.approx(1.5)]
+    assert all(isinstance(v, float) for v in buf["reward"])
+
+
+def test_reward_squeeze_finds_writer_buffer_lerobot_051(monkeypatch) -> None:
+    """0.5.1 routes recording through a DatasetWriter; the dataset has no episode_buffer."""
+    pytest.importorskip("lerobot")
+    from so101_nexus.teleop.dataset import _make_reward_scalar_dataset_cls
+
+    seen = _patch_parent_save_episode(monkeypatch)
+    obj = _blank_recording_obj(_make_reward_scalar_dataset_cls())
+    buf = _reward_buffer()
+    obj.writer = types.SimpleNamespace(
+        episode_buffer=buf, close=lambda: None, finalize=lambda: None
+    )
+
+    obj.save_episode()
+
+    assert seen["episode_data"] is None
+    assert buf["reward"] == [pytest.approx(0.25), pytest.approx(1.5)]
+    assert all(isinstance(v, float) for v in buf["reward"])

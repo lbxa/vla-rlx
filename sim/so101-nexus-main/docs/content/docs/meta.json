@@ -1,0 +1,15 @@
+{
+  "title": "SO101-Nexus",
+  "root": true,
+  "pages": [
+    "index",
+    "---Get Started---",
+    "getting-started",
+    "---Workflow---",
+    "workflow",
+    "---Reference---",
+    "environments",
+    "concepts",
+    "api"
+  ]
+}
