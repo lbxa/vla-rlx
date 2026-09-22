@@ -1,0 +1,10 @@
+---
+order: 1
+title: "Problem"
+---
+
+> Generalist robot policies still break at the edge
+
+Robots operating in unstructured, changing environments often encounter conditions that differ from their training data. Vision-language-action policies provide a promising foundation by combining visual perception, language grounding, and action prediction, but real-world robots still fail when the scene shifts beyond the conditions seen during training. A base policy may reach the object, begin the correct motion, and get most of the way through the task, then fail at the final contact-rich stage.
+
+Full fine-tuning is expensive and risks erasing valuable pretrained behaviour. Pure reinforcement learning from scratch has the opposite problem, since real robot data is slow, costly, and physically constrained. The missing piece is a local adaptation mechanism that preserves the broad competence of the pretrained policy while allowing the robot to specialize to its own embodiment, task distribution, and physical environment. This project studies that middle ground through a frozen VLA backbone and a lightweight residual RL controller that learns the last-mile corrections needed for real-world manipulation.

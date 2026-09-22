@@ -1,0 +1,16 @@
+---
+order: 7
+title: "Limitations"
+---
+
+This project is deliberately narrow. The goal is not to prove that residual RL solves general robot learning, but to test whether a lightweight residual controller can improve real hardware behaviour when full VLA retraining is unrealistic.
+
+* Tested on one low-cost SO-101 arm
+* Fixed external camera setup
+* No wrist-mounted camera
+* Seven tabletop manipulation tasks
+* Controlled lab environment
+* TD3, SAC, and PPO only
+* One DTP-based reward design
+
+These constraints limit broad generalization, but they make the result practical. The value is showing a viable adaptation layer for frozen VLA policies under a tight physical trial budget.

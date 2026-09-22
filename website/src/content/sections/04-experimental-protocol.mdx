@@ -1,0 +1,298 @@
+---
+order: 4
+title: "Experimental Protocol"
+---
+
+import bottleLidFront from "../../assets/images/demos/bottle-lid-front.webp";
+import bottleLidTop from "../../assets/images/demos/bottle-lid-top.webp";
+import busTableEasyFront from "../../assets/images/demos/bus-table-easy-front.webp";
+import busTableEasyTop from "../../assets/images/demos/bus-table-easy-top.webp";
+import busTableHardFront from "../../assets/images/demos/bus-table-hard-front.webp";
+import busTableHardTop from "../../assets/images/demos/bus-table-hard-top.webp";
+import busTableMediumFront from "../../assets/images/demos/bus-table-medium-front.webp";
+import busTableMediumTop from "../../assets/images/demos/bus-table-medium-top.webp";
+import eraseWhiteboardFront from "../../assets/images/demos/erase-whiteboard-front.webp";
+import eraseWhiteboardTop from "../../assets/images/demos/erase-whiteboard-top.webp";
+import frenchPressFront from "../../assets/images/demos/french-press-front.webp";
+import frenchPressTop from "../../assets/images/demos/french-press-top.webp";
+import rubixStackFront from "../../assets/images/demos/rubix-stack-front.webp";
+import rubixStackTop from "../../assets/images/demos/rubix-stack-top.webp";
+
+### Overview of Experiments
+
+This experimental suite evaluates residual RL adapters on top of a frozen pre-trained VLA backbone for real-world tabletop manipulation. We compare three controller variants: the unmodified backbone policy, a fine-tuned policy without residual adaptation, and residual RL adapters that learn additive action corrections to the base action. The core objective is to measure how effectively different residual RL algorithms can exploit a fixed pre-trained policy under real distribution shifts.
+
+All experiments run on a physical 3D-printed SO-101 robotic arm without simulation. Training and evaluation use only real-world interaction data from teleoperated demonstrations and robot rollouts, so outcomes directly reflect sensor noise, contact variability, and actuation delays.
+
+The suite includes seven tabletop tasks that vary in difficulty, horizon, and contact complexity: stacking Rubik's cubes, bussing a table at three clutter levels, placing a bottle lid, erasing a whiteboard marker stroke with cloth, and closing a French press. Together these tasks probe perception, precision grasping, dexterous manipulation, and long-horizon behavior.
+
+### Task 1: Rubik's Stack
+
+The `rubix-stack-v1` task requires stacking two Rubik's cubes, with the smaller cube on top of the larger cube. Cubes vary in color and are randomly rotated between episodes, stressing visual perception and precise grasp execution on non-axis-aligned objects.
+
+A rollout is successful when the smaller cube is grasped, lifted, and stably placed on the larger cube without either cube leaving the workspace.
+
+<ImageTwoUp
+  left={{
+    src: rubixStackFront,
+    alt: "Front camera view of the Rubik's Stack workspace with a larger and smaller Rubik's cube on the tabletop.",
+    caption: "(a) Front camera view of the Rubik's Stack workspace.",
+    thumbhash: "66080a0c847667677087778c87890885646038",
+  }}
+  right={{
+    src: rubixStackTop,
+    alt: "Top camera view of the Rubik's Stack workspace showing the cube arrangement and reachable region.",
+    caption: "(b) Top camera view of the Rubik's Stack workspace.",
+    thumbhash: "20f8050480059c9b99887996687b905a0a8696",
+  }}
+  caption="Front and top camera views of the Rubik's Stack workspace used for data collection and evaluation."
+/>
+
+### Task 2: Bus Table (Easy)
+
+The `bus-table-easy-v1` task asks the robot to clear a small tabletop by picking up a few colored pens and a glue stick, then placing them into a pen holder. Glossy objects interacting with a PLA gripper induce slip and require careful approach angles for reliable grasping.
+
+A rollout is successful when all objects are placed in the pen holder and none are pushed or knocked off the table.
+
+<ImageTwoUp
+  left={{
+    src: busTableEasyFront,
+    alt: "Front camera view of the Bus Table (Easy) workspace with a small number of objects to clear.",
+    caption: "(a) Front camera view of the Bus Table (Easy) workspace.",
+    thumbhash: "6508060c8269a15649c6938e78800986765067",
+  }}
+  right={{
+    src: busTableEasyTop,
+    alt: "Top camera view of the Bus Table (Easy) workspace with pens and glue stick around the holder.",
+    caption: "(b) Top camera view of the Bus Table (Easy) workspace.",
+    thumbhash: "1ff8050482058dba89986995687e90580a7486",
+  }}
+  caption="Front and top camera views of the Bus Table (Easy) workspace used for data collection and evaluation."
+/>
+
+### Task 3: Bus Table (Medium)
+
+The `bus-table-medium-v1` task increases object count and adds a pen type with fewer reliable grasp points. The longer horizon and sparser rewards test planning and persistence, while the new geometry is a stricter probe of dexterous grasping.
+
+A rollout is successful when all objects are placed in the pen holder and none are pushed or knocked off the table.
+
+<ImageTwoUp
+  left={{
+    src: busTableMediumFront,
+    alt: "Front camera view of the Bus Table (Medium) workspace with additional cluttered pens.",
+    caption: "(a) Front camera view of the Bus Table (Medium) workspace.",
+    thumbhash: "6308060c8239c2823b98a28e88900986666058",
+  }}
+  right={{
+    src: busTableMediumTop,
+    alt: "Top camera view of the Bus Table (Medium) workspace showing denser object arrangement.",
+    caption: "(b) Top camera view of the Bus Table (Medium) workspace.",
+    thumbhash: "22f8050480058dba89986994787e90570c75a6",
+  }}
+  caption="Front and top camera views of the Bus Table (Medium) workspace used for data collection and evaluation."
+/>
+
+### Task 4: Bus Table (Hard)
+
+The `bus-table-hard-v1` task further increases clutter with many pens of different shapes, diameters, and colors, plus a glue stick on a crowded tabletop. The robot must choose grasp sequences that avoid chain reactions where one poor approach displaces multiple objects.
+
+A rollout is successful when all objects are placed in the pen holder and none are pushed or knocked off the table.
+
+<ImageTwoUp
+  left={{
+    src: busTableHardFront,
+    alt: "Front camera view of the Bus Table (Hard) workspace with heavy tabletop clutter.",
+    caption: "(a) Front camera view of the Bus Table (Hard) workspace.",
+    thumbhash: "6508060c8266a2545995947e98900987667049",
+  }}
+  right={{
+    src: busTableHardTop,
+    alt: "Top camera view of the Bus Table (Hard) workspace with dense object distribution.",
+    caption: "(b) Top camera view of the Bus Table (Hard) workspace.",
+    thumbhash: "1ff8050482049ea989986995687e80470a8596",
+  }}
+  caption="Front and top camera views of the Bus Table (Hard) workspace used for data collection and evaluation."
+/>
+
+### Task 5: Close Bottle Lid
+
+The `close-bottle-lid-v1` task evaluates precise pose estimation and alignment by requiring the robot to place a metal lid onto its matching metal bottle. Tight clearances around the bottle rim make outcomes highly sensitive to end-effector pose error.
+
+A rollout is successful if the lid is grasped and lifted without being dropped, moved above the bottle opening, and placed so it seats cleanly on the rim. Twisting or screwing is not required.
+
+<ImageTwoUp
+  left={{
+    src: bottleLidFront,
+    alt: "Front camera view of the Bottle Lid workspace with bottle and detached lid.",
+    caption: "(a) Front camera view of the Bottle Lid workspace.",
+    thumbhash: "26080a0c827fa4757a76876b87750786555058",
+  }}
+  right={{
+    src: bottleLidTop,
+    alt: "Top camera view of the Bottle Lid workspace showing relative pose between lid and bottle.",
+    caption: "(b) Top camera view of the Bottle Lid workspace.",
+    thumbhash: "19f80504808960951364679e9683f282094789",
+  }}
+  caption="Front and top camera views of the Bottle Lid workspace used for data collection and evaluation."
+/>
+
+### Task 6: Erase Whiteboard
+
+The `erase-whiteboard-v1` task uses a deformable cloth to remove a red marker stroke from a vertical whiteboard. Deformable contact creates variable contact patches and friction, yielding non-deterministic dynamics that challenge residual compensation.
+
+A rollout is successful when the cloth is grasped, pressed against the board, and moved so the marked region is largely erased with only faint traces remaining.
+
+<ImageTwoUp
+  left={{
+    src: eraseWhiteboardFront,
+    alt: "Front camera view of the Erase Whiteboard workspace with cloth and marked board.",
+    caption: "(a) Front camera view of the Erase Whiteboard workspace.",
+    thumbhash: "6508060c824f478a6d76879c76730887636058",
+  }}
+  right={{
+    src: eraseWhiteboardTop,
+    alt: "Top camera view of the Erase Whiteboard workspace showing board and robot approach zone.",
+    caption: "(b) Top camera view of the Erase Whiteboard workspace.",
+    thumbhash: "18f8050c80687074146566af8674f0b705785a",
+  }}
+  caption="Front and top camera views of the Erase Whiteboard workspace used for data collection and evaluation."
+/>
+
+### Task 7: Close French Press
+
+The `close-french-press` task requires manipulating the French press lid by a thin metal rod that is narrower than the gripper aperture, so the robot stabilizes through surface contact on the knob. The task then requires pressing the plunger against water resistance, combining precise stabilization with forceful actuation.
+
+A rollout is successful if the lid is grasped and lifted without sliding off the rod or knob, positioned over the opening, and the plunger is pressed down until the knob reaches the closed position.
+
+<ImageTwoUp
+  left={{
+    src: frenchPressFront,
+    alt: "Front camera view of the Close French Press workspace with press and lid components.",
+    caption: "(a) Front camera view of the Close French Press workspace.",
+    thumbhash: "2508060c822f76b97d89866c76930886655058",
+  }}
+  right={{
+    src: frenchPressTop,
+    alt: "Top camera view of the Close French Press workspace showing the plunger and surrounding area.",
+    caption: "(b) Top camera view of the Close French Press workspace.",
+    thumbhash: "18f80504806882642255769fa583f283084889",
+  }}
+  caption="Front and top camera views of the Close French Press workspace used for data collection and evaluation."
+/>
+
+### Trial Split and Progress Scoring
+
+Each method-task pair is evaluated over 20 physical rollouts. We use a 5-5-10 protocol and log Discretized Task Progress (DTP) per trial so failures are legible by stage rather than collapsed into binary success/failure.
+
+<div class="not-prose my-6 space-y-4">
+  <div class="rounded-lg border border-stone-300 bg-stone-50 p-4">
+    <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-stone-700">5-5-10 Trial Protocol</p>
+    <div class="grid gap-2 sm:grid-cols-3">
+      <div class="rounded-md border border-stone-300 bg-white p-3">
+        <p class="text-xs font-medium text-stone-900">Trials 1-5</p>
+        <p class="text-xs text-stone-600">In-distribution</p>
+      </div>
+      <div class="rounded-md border border-stone-300 bg-white p-3">
+        <p class="text-xs font-medium text-stone-900">Trials 6-10</p>
+        <p class="text-xs text-stone-600">Dynamic perturbation</p>
+      </div>
+      <div class="rounded-md border border-stone-300 bg-white p-3">
+        <p class="text-xs font-medium text-stone-900">Trials 11-20</p>
+        <p class="text-xs text-stone-600">Out-of-distribution</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="rounded-lg border border-stone-300 bg-stone-50 p-4">
+    <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-stone-700">DTP Ladder</p>
+    <ol class="space-y-2">
+      <li class="flex items-center gap-3 rounded-md border border-stone-300 bg-white px-3 py-2 text-xs">
+        <span class="w-10 font-semibold text-stone-900">0.00</span>
+        <span class="text-stone-700">no useful progress</span>
+      </li>
+      <li class="flex items-center gap-3 rounded-md border border-stone-300 bg-white px-3 py-2 text-xs">
+        <span class="w-10 font-semibold text-stone-900">0.25</span>
+        <span class="text-stone-700">perception / approach</span>
+      </li>
+      <li class="flex items-center gap-3 rounded-md border border-stone-300 bg-white px-3 py-2 text-xs">
+        <span class="w-10 font-semibold text-stone-900">0.50</span>
+        <span class="text-stone-700">contact / partial manipulation</span>
+      </li>
+      <li class="flex items-center gap-3 rounded-md border border-stone-300 bg-white px-3 py-2 text-xs">
+        <span class="w-10 font-semibold text-stone-900">0.75</span>
+        <span class="text-stone-700">near completion</span>
+      </li>
+      <li class="flex items-center gap-3 rounded-md border border-stone-300 bg-white px-3 py-2 text-xs">
+        <span class="w-10 font-semibold text-stone-900">1.00</span>
+        <span class="text-stone-700">task success</span>
+      </li>
+    </ol>
+  </div>
+</div>
+
+We aggregate these trial-level progress scores into three summary metrics: mean progress across all rollouts, OOD generalization over the final ten rollouts, and the residual policy's generalization gain over the base policy:
+
+```math
+MP = \frac{1}{N}\sum_{i=1}^{N} P_{\mathrm{task}}^{i}
+```
+
+```math
+J_{\mathrm{gen}} = \frac{1}{10}\sum_{i=11}^{20} P_{\mathrm{task}}^{i}
+```
+
+```math
+\Delta_{\mathrm{gen}} = J_{\mathrm{gen}}(\mathrm{ResRL}) - J_{\mathrm{gen}}(\mathrm{Base})
+```
+
+### Environment Setup for OOD Tests
+
+The tabletop workspace and sensing configuration are designed to induce controlled out-of-distribution (OOD) shifts across visual, dynamical, task, and environmental dimensions while remaining compatible with the seven tasks above. OOD conditions are introduced by modifying object appearance and geometry, contact properties, clutter, and partial failure events across repeated rollouts.
+
+<table>
+  <thead>
+    <tr>
+      <th>Shift type</th>
+      <th>Workspace implementation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Visual shift</td>
+      <td>
+        Vary object color and texture (for example Rubik's cube faces, pen colors, and metal versus plastic
+        surfaces), adjust ambient lighting intensity and hue, and alter background appearance inside the camera
+        field of view.
+      </td>
+    </tr>
+    <tr>
+      <td>Dynamics shift</td>
+      <td>
+        Change object mass and friction (for example pen coatings, metal versus plastic lids, and cloth on
+        whiteboard), or vary table coverings to alter sliding and sticking behavior in contact-rich interactions.
+      </td>
+    </tr>
+    <tr>
+      <td>Task configuration shift</td>
+      <td>
+        Scale the number and arrangement of objects (Tasks 2-4), alter initial poses and relative spacing, or
+        require interaction with deformable or partially supported objects (Tasks 5-7).
+      </td>
+    </tr>
+    <tr>
+      <td>Environmental or clutter shift</td>
+      <td>
+        Introduce distractor objects and increased clutter around the primary task region, or slightly reconfigure
+        the workspace in the camera frame while keeping the target objects present.
+      </td>
+    </tr>
+    <tr>
+      <td>Failure and recovery shift</td>
+      <td>
+        Allow objects to slip, topple, or roll during execution, creating intermediate states that require
+        re-grasping, re-approach, or local replanning instead of a single straight-line solution.
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+All conditions are instantiated on the physical SO-101 tabletop setup using real objects, adjustable lighting, and fixed camera viewpoints. Success and failure on OOD trials are determined from synchronized RGB camera recordings and robot telemetry, yielding per-rollout success labels and, where applicable, intermediate progress indicators for reward definition and for reporting success rates and failure modes.

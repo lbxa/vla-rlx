@@ -1,0 +1,51 @@
+---
+order: 3
+title: "System Overview"
+---
+
+import leaderParts from "../../assets/images/leader_parts.webp";
+import followerParts from "../../assets/images/follower_parts.webp";
+import so101Arms from "../../assets/images/so101-arms.webp";
+import workspaceGrid from "../../assets/images/workspace-grid.webp";
+import experimentSetup from "../../assets/images/experiment-setup.webp";
+
+<ImageTwoUp
+  left={{
+    src: leaderParts,
+    alt: "Leader robot STL components arranged on an Ender 3 printer bed for fabrication.",
+    caption: "(a) Leader robot components",
+    thumbhash: "d8f982050225738a8964702bf6808801871807477897828947",
+  }}
+  right={{
+    src: followerParts,
+    alt: "Follower robot STL components arranged on an Ender 3 printer bed for fabrication.",
+    caption: "(b) Follower robot components",
+    thumbhash: "d8f9820500247b8c639c40bfda8c60c0080608878877718977",
+  }}
+  caption="STL layouts of the leader and follower robot components arranged on the Ender 3 printer bed for fabrication."
+/>
+
+<Image
+  src={so101Arms}
+  size="narrow"
+  alt="SO-101 Robot arms assembled"
+  caption="A pair of white 3D-printed SO-101 robotic arms with black ST-3215-C0xx servos, resting side-by-side on a clean white surface."
+  thumbhash="2af8050580aeb9588e76868a760597785a8f11fe67"
+/>
+
+<Image
+  src={workspaceGrid}
+  size="standard"
+  alt="Four camera views showing the tabletop workspace divided into five labeled placement regions."
+  caption="Workspace grid used for object placement regions across camera views."
+  thumbhash="25f8050480897b85837778788770609a57f787"
+/>
+
+<Image
+  src={experimentSetup}
+  size="standard"
+  alt="Real-world tabletop experiment setup with SO-101 robot arms, overhead camera tripod, and divider panels."
+  caption="Real-world experimental setup used for data collection and residual RL evaluation."
+  thumbhash="28080a05000779678cb87a57759688785099398bfa"
+/>
+

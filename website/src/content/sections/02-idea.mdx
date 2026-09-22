@@ -1,0 +1,8 @@
+---
+order: 2
+title: "Idea"
+---
+
+Instead of fine-tuning the full VLA backbone, this project treats the pretrained policy as a frozen visuomotor prior. The model still sees the camera input, robot state, and language instruction, then proposes the base action. A lightweight residual RL controller sits on top of that action and learns only the correction needed for the robot, task, camera geometry, and local dynamics.
+
+This keeps the useful behaviour learned during pretraining intact, while giving the system a practical way to adapt on real hardware. The base policy gets the robot into the right part of the task. The residual policy learns the last-mile adjustment that turns partial progress into completion.

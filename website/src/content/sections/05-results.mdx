@@ -1,0 +1,134 @@
+---
+order: 5
+title: "Results"
+---
+
+import overallMeanProgress from "../../assets/images/plots/01_overall_mean_progress.webp";
+import generalizationComparison from "../../assets/images/plots/02_generalization_comparison.webp";
+import transferGap from "../../assets/images/plots/03_transfer_gap.webp";
+import perTaskBreakdown from "../../assets/images/plots/04_per_task_breakdown.webp";
+import residualRlComparison from "../../assets/images/plots/05_residual_rl_comparison.webp";
+import rlVsResidualRl from "../../assets/images/plots/06_rl_vs_residual_rl.webp";
+import heroSummary from "../../assets/images/plots/07_hero_summary.webp";
+import taskDifficulty from "../../assets/images/plots/08_task_difficulty.webp";
+
+### Experimental Results
+
+This section evaluates the residual reinforcement learning framework across seven real-world manipulation tasks. We compare the frozen base policy (`pi_base`), three pure RL algorithms (TD3, SAC, PPO), and their residual variants (Res-TD3, Res-SAC, Res-PPO). Each task is run for 20 trials, with trials 1-10 in nominal settings and trials 11-20 under OOD conditions with randomized initialization and dynamics perturbations.
+
+### Overall Performance Analysis
+
+We begin with aggregate performance over all tasks and all trials to establish the broad ranking of methods.
+
+<ImageTwoUp
+  left={{
+    src: overallMeanProgress,
+    alt: "Mean task progress across all seven manipulation tasks and all twenty trials for base, pure RL, and residual RL policies.",
+    caption: "(a) Mean task progress over all trials.",
+    thumbhash: "f5f70514822bb7c87f79775b89646f5bfbb6b5",
+  }}
+  right={{
+    src: generalizationComparison,
+    alt: "Generalization scores on OOD trials only, comparing base, pure RL, and residual RL policies.",
+    caption: "(b) Generalization score on OOD trials.",
+    thumbhash: "f6f70514823cb7a77f79773a89846f5bfbb6b5",
+  }}
+  caption="Overall performance comparison across seven tasks. Residual RL methods outperform both the frozen base policy and pure RL baselines in aggregate mean progress and OOD generalization. Error bars denote 95% confidence intervals, and the dashed line indicates base policy reference."
+/>
+
+The aggregate plots show a clear hierarchy. Pure RL policies underperform the base policy, with mean progress in the 0.13-0.20 range versus 0.49 for the base. Residual RL methods reverse that trend and deliver substantially higher performance, with Res-SAC reaching 0.78 mean progress, a 59% relative gain over the base policy.
+
+### Transfer Gap and Generalization Benefits
+
+To measure adaptation under distribution shift directly, we compute transfer gap as `$\\Delta_{gen}$`, the OOD performance gain over the frozen base policy.
+
+<Image
+  src={transferGap}
+  size="standard"
+  alt="Transfer gap values for Res-TD3, Res-SAC, and Res-PPO relative to the base policy on OOD evaluation trials."
+  caption="Transfer gap ($\\Delta_{gen}$) for residual RL methods relative to the frozen base policy. All residual variants produce positive transfer, with Res-SAC showing the largest gain (+0.46). Error bars indicate 95% confidence intervals across tasks."
+  thumbhash="74e7091d849b78f95f78776b87487877a97f8cfab7"
+/>
+
+All residual variants show substantial positive transfer: +0.46 (Res-SAC), +0.37 (Res-PPO), and +0.36 (Res-TD3). This supports the central claim that online residual adaptation bridges distribution shift that otherwise degrades frozen policy behavior.
+
+### Per-Task Performance Breakdown
+
+Aggregate metrics hide task-specific variation, so we compare the base policy against the best residual method per task.
+
+<Image
+  src={perTaskBreakdown}
+  size="wide"
+  alt="Per-task comparison of base policy performance and best residual RL performance with relative improvement annotations."
+  caption="Per-task breakdown between the base policy and the best residual RL method. Residual adaptation improves all seven tasks, with gains from 18% up to 156%. Error bars show 95% confidence intervals."
+  thumbhash="b1e7091482b8d9977f76777f6682a97c9fbaf7"
+/>
+
+Residual RL improves performance on every task. Improvements are modest where the base policy is already strong (for example, Erase Whiteboard at 18%) and much larger on hard tasks such as Close French Press and Bus Table (Hard), where gains exceed 150%.
+
+### Comparison of Residual RL Algorithms
+
+We then compare Res-TD3, Res-SAC, and Res-PPO directly across both aggregate progress and OOD generalization.
+
+<Image
+  src={residualRlComparison}
+  size="wide"
+  alt="Task-wise comparison of Res-TD3, Res-SAC, and Res-PPO across mean progress and OOD generalization."
+  caption="Residual RL algorithm comparison across tasks. Res-SAC is most consistently high-performing, especially on Bus Table variants and Erase Whiteboard. Error bars indicate 95% confidence intervals."
+  thumbhash="32d7091c8488c9887d77877f7783887c8fc8f7"
+/>
+
+Res-SAC is the most consistent algorithm overall, reaching the highest or near-highest scores on most tasks. Res-TD3 and Res-PPO remain competitive but show larger variance across environments.
+
+### Pure RL versus Residual RL
+
+To isolate the effect of residual formulation, we compare each pure RL family to its residual counterpart.
+
+<Image
+  src={rlVsResidualRl}
+  size="standard"
+  alt="Head-to-head OOD performance comparisons between TD3 vs Res-TD3, SAC vs Res-SAC, and PPO vs Res-PPO."
+  caption="Pure RL versus residual RL on OOD generalization. Residual adaptation yields large gains across all algorithm families: +0.50 (TD3), +0.55 (SAC), and +0.52 (PPO). Error bars indicate 95% confidence intervals."
+  thumbhash="b5e7091482998aad6f67676977769b6fbef9e6"
+/>
+
+The gains are consistent across algorithm families, indicating that the residual formulation itself drives most of the improvement rather than any one RL optimizer.
+
+### Summary of Key Findings
+
+The following summary view emphasizes the practical impact of combining a frozen prior with learned residual correction.
+
+<Image
+  src={heroSummary}
+  size="standard"
+  alt="Summary bar chart comparing generalization performance of base policy, best pure RL method, and best residual RL method."
+  caption="Summary of policy paradigms on OOD generalization. Base reaches 0.33, best pure RL (SAC) reaches 0.26, and Res-SAC reaches 0.78, corresponding to 134% improvement over base and 200% over pure SAC. Error bars indicate 95% confidence intervals."
+  thumbhash="f5f70915824acbd88f6855488948779b2f5afba2b5"
+/>
+
+Res-SAC reaches 0.78 generalization, a **134%** improvement over the base policy (0.33) and a **200%** improvement over pure SAC (0.26). This is the strongest evidence that residual RL preserves pretrained strengths while adding targeted adaptation.
+
+### Robustness to Task Difficulty
+
+We also analyze scaling behavior with task difficulty using Bus Table easy, medium, and hard variants.
+
+<Image
+  src={taskDifficulty}
+  size="standard"
+  alt="Generalization performance across Bus Table easy, medium, and hard settings for base policy and Res-SAC."
+  caption="Generalization as a function of Bus Table difficulty. The base policy degrades sharply with difficulty, while Res-SAC remains robust with high performance across all three levels. Shaded regions indicate 95% confidence bands."
+  thumbhash="3b08020580b899a837a7898f9527a706ac80cf1af8"
+/>
+
+The base policy drops from 0.63 on easy to 0.13 on hard (79% decline), while Res-SAC stays high across the range (roughly 0.68-1.00). The gap widens as difficulty increases, suggesting residual corrections become more valuable in challenging conditions.
+
+### Discussion
+
+The results support four practical conclusions:
+
+1. **Consistent improvements:** Residual RL outperforms both the frozen base policy and pure RL across tasks and algorithm families.
+2. **Meaningful transfer gains:** Positive transfer gap for all residual methods shows robust OOD adaptation, not marginal noise.
+3. **Difficulty robustness:** Residual RL maintains reliability under harder task dynamics where base behavior degrades.
+4. **Recommended default:** Res-SAC is the strongest overall choice due to both mean performance and cross-task consistency.
+
+Overall, residual RL provides a practical and effective mechanism to adapt pretrained manipulation policies in real deployment conditions without full policy retraining.

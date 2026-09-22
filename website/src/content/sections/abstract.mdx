@@ -1,0 +1,20 @@
+---
+order: 1
+slug: abstract
+---
+
+import Image from "../../components/Image.astro";
+import demoMonolith from "../../assets/images/demo-monolith.webp";
+
+This project studies how frozen vision-language-action policies can be adapted to real-world robotic manipulation through lightweight residual reinforcement learning. Rather than fine-tuning the full foundation model, a compact RL controller learns additive action corrections on top of the pretrained policy. Experiments on a 3D-printed SO-101 arm across seven tabletop manipulation tasks show improved task progress and out-of-distribution generalization under object, viewpoint, and dynamic perturbations.
+
+<Image
+  src={demoMonolith}
+  class="mt-12"
+  alt="Composite of SO-101 robot arm rollouts across tabletop tasks, with front and top camera views."
+  caption="Representative frames across evaluation tasks"
+  thumbhash="22f88103000d10b5bcb598859f058679f7f777777d88d8"
+  loading="eager"
+  fetchpriority="high"
+/>
+

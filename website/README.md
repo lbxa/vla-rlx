@@ -1,17 +1,22 @@
-# Website source status
+# Thesis website
 
-This checkout contains a research presentation describing 12 tasks and
-30 trials per task. It does not match the seven-task, 20-trial page inspected at
-[vla.lbxa.net](https://vla.lbxa.net/) on 4 September 2026. Its quantitative claims
-and example reproduction commands have not been reconciled with the supplied
-results or manuscript. Its relationship to the deployed source revision has not
-been established. Locate the current page's source before editing or
-deploying it as the thesis site.
+The website source and manuscript were restored from `gh-pages` at commit
+`a80959a4923e075c30036377826545698081f2c6`. `main` is now the source for
+[vla.lbxa.net](https://vla.lbxa.net/).
 
-The current repository documentation is in the [research README](../README.md).
-The [protocol and evidence record](../docs/reproduction-status.md) documents the
-5–5–10 trial split and the unresolved score discrepancy. The existing GitHub Pages
-workflow builds this directory on pushes to `main`; this audit did not deploy it.
+## Deployment
+
+The GitHub Actions workflow in `.github/workflows/pages.yml` builds `website/`
+and deploys automatically on pushes to `main`. Manual workflow runs also deploy
+only when run against `main`. The `github-pages` environment allows deployments
+only from `main`.
+
+Keep website content and `public/files/thesis.pdf` on `main`. Use `dev` for work
+in progress and merge ready changes into `main` to publish them.
+
+The [research README](../README.md) and
+[protocol and evidence record](../docs/reproduction-status.md) document the
+research audit. Restoring the website does not resolve the audit's open questions.
 
 ## Original starter instructions
 

@@ -1,0 +1,48 @@
+---
+order: 8
+title: "Future Work"
+---
+
+import Toggle from "../../components/Toggle.astro";
+
+> The path to reliable robots may not be bigger generalist policies alone, but better interfaces between priors and experience
+
+This project tests residual adaptation in a deliberately constrained setting. The next step is to scale the same idea across stronger backbones, richer sensing, harder contact dynamics, and more modular robot systems.
+
+<div class="not-prose my-8 ml-sm">
+  <Toggle>
+    <span slot="summary">Larger VLA backbones</span>
+
+    Test residual RL on stronger pretrained policies and compare how much adaptation each backbone needs.
+  </Toggle>
+
+  <Toggle>
+    <span slot="summary">Wrist-mounted vision</span>
+
+    Add close-range visual feedback so the adapter can reason through contact, occlusion, and final placement.
+  </Toggle>
+
+  <Toggle>
+    <span slot="summary">Contact-rich manipulation</span>
+
+    Move beyond tabletop reaching into tasks with friction, force, deformation, and recovery.
+  </Toggle>
+
+  <Toggle>
+    <span slot="summary">Residual adaptation benchmark</span>
+
+    Standardize tasks, rollout splits, DTP scoring, and OOD perturbations so residual methods can be compared cleanly.
+  </Toggle>
+
+  <Toggle>
+    <span slot="summary">Planner plus residual controller</span>
+
+    Combine high-level planning with low-level residual correction, so the robot can reason globally and adapt locally.
+  </Toggle>
+
+  <Toggle>
+    <span slot="summary">Module communication</span>
+
+    Define cleaner interfaces between the VLA, planner, safety layer, and RL controller.
+  </Toggle>
+</div>

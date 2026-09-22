@@ -1,0 +1,184 @@
+---
+description: Use Bun instead of Node.js, npm, pnpm, or vite.
+globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
+alwaysApply: false
+---
+
+Default to using Bun instead of Node.js.
+
+- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
+- Use `bun test` instead of `jest` or `vitest`
+- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
+- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
+- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
+- Bun automatically loads .env, so don't use dotenv.
+
+## APIs
+
+- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
+- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
+- `Bun.redis` for Redis. Don't use `ioredis`.
+- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
+- `WebSocket` is built-in. Don't use `ws`.
+- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
+- Bun.$`ls` instead of execa.
+
+## Testing
+
+Use `bun test` to run tests.
+
+```ts#index.test.ts
+import { test, expect } from "bun:test";
+
+test("hello world", () => {
+  expect(1).toBe(1);
+});
+```
+
+## Frontend
+
+Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
+
+Server:
+
+```ts#index.ts
+import index from "./index.html"
+
+Bun.serve({
+  routes: {
+    "/": index,
+    "/api/users/:id": {
+      GET: (req) => {
+        return new Response(JSON.stringify({ id: req.params.id }));
+      },
+    },
+  },
+  // optional websocket support
+  websocket: {
+    open: (ws) => {
+      ws.send("Hello, world!");
+    },
+    message: (ws, message) => {
+      ws.send(message);
+    },
+    close: (ws) => {
+      // handle close
+    }
+  },
+  development: {
+    hmr: true,
+    console: true,
+  }
+})
+```
+
+HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
+
+```html#index.html
+<html>
+  <body>
+    <h1>Hello, world!</h1>
+    <script type="module" src="./frontend.tsx"></script>
+  </body>
+</html>
+```
+
+With the following `frontend.tsx`:
+
+```tsx#frontend.tsx
+import React from "react";
+
+// import .css files directly and it works
+import './index.css';
+
+import { createRoot } from "react-dom/client";
+
+const root = createRoot(document.body);
+
+export default function Frontend() {
+  return <h1>Hello, world!</h1>;
+}
+
+root.render(<Frontend />);
+```
+
+Then, run index.ts
+
+```sh
+bun --hot ./index.ts
+```
+
+For more information, read the Bun API docs in `node_modules/bun-types/docs/**.md`.
+
+## Project Context: Retail Arbitrage (VALUE_ALPHA)
+
+This project automates a retail-arbitrage loop across marketplaces, with Shopify merchants as the buy/source side and eBay as the primary sell side.
+
+### High-Level Objective
+
+- Keep an up-to-date source-merchant catalog mirror.
+- List high-priority inventory to eBay.
+- Unlist eBay items when source inventory is sold out.
+- React to eBay sold events by triggering automated source-merchant checkout.
+
+### Marketplace Scope
+
+- `SOURCE MERCHANTS`: Shopify-backed catalogue feeds (multi-merchant)
+- `SELL MARKETPLACES`: eBay (bulk listing API), Depop (bulk API support in progress)
+
+### Current State
+
+- `catalog` table schema exists and has been applied to production.
+- Core remaining work is catalog sync deltas, listing automation, and checkout orchestration.
+
+### Agent Priorities (Implementation Order)
+
+1. Merchant scrape logic + API to fetch full updated catalog.
+2. Delta detection:
+   - `SOLD`: identify source items that must be unlisted from eBay.
+   - `NEW`: identify source items that must be queued/listed on eBay.
+3. Item ranking logic for eBay posting priority.
+4. eBay posting pipeline and subscription setup for app/user accounts.
+5. eBay sold webhook listener.
+6. Source-merchant checkout agent steps (customer details, virtual card, confirmation, tracking).
+7. Depop bulk API fixes.
+
+### Catalog Data Contract
+
+Treat `catalog` as the source-of-truth sync table keyed by `handle`. Preserve and use lifecycle fields:
+
+- Availability/sale: `available`, `is_sold`, `sold_on`, `last_snapshot`
+- eBay sync: `ebay_listing_id`, `ebay_status`, `listed_on`, `unlisted_on`, `last_ebay_error`
+- payload traceability: `raw_payload`
+
+Accepted `ebay_status` values:
+
+- `not_listed`
+- `queued`
+- `listed`
+- `pending_unlist`
+- `unlist_failed`
+- `list_failed`
+
+### Agent Guidance
+
+- Prefer minimal, contained changes tied directly to sell/buy pipeline milestones.
+- Avoid introducing new abstractions unless needed for a specific milestone.
+- Keep logic idempotent for catalog sync and listing/unlisting operations.
+
+### eBay Sync Interrupt Semantics
+
+- Treat eBay sync `Ctrl+C` behavior as two-stage shutdown:
+  - First interrupt: graceful drain (stop new queue intake, finish in-flight listing attempts, then exit).
+  - Second interrupt: forced exit (`130`).
+- Rapid duplicate signal events are debounced to avoid accidental forced exit from a single keypress.
+- If no jobs are in-flight, first-interrupt graceful drain can finish immediately.
+
+### Python Workspace Structure (Current)
+
+- Python listing helpers now live under `apps/` as:
+  - `apps/ebay_add_listing`
+  - `apps/ebay_remove_listing`
+  - `apps/upload_ebay_aspects`
+- Use the root `uv` workspace (global approach), not per-app virtualenvs.
+- Run Python commands from repo root via `uv run --package <package_name> ...`.
