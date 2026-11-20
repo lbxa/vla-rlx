@@ -1,0 +1,3 @@
+# MCP servers and model defaults are inherited from the user's configuration.
+[features]
+hooks = true

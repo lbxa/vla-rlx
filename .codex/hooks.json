@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "repo_root=$(git rev-parse --show-toplevel) && python3 \"$repo_root/.codex/hooks/stop_checks.py\"",
+            "statusMessage": "Checking VLA-RLX changes",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

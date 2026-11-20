@@ -50,6 +50,10 @@ Source SHA-256 hashes at inspection:
 | manuscript `Chapters/Methodology.tex` | `901eb56736fb5af49d40748e32b97969388660c115c12b110155a3bde3c9534e` |
 | manuscript `Chapters/Discussion.tex` | `72157dbf4df36324c4f13968e3ab773a8c5e681ea078f8cdad7305530f170d27` |
 
+### Internal manuscript check, 20 November 2026
+
+The Results table and the appendix report the same 119 summary values. Recomputing from the 980 **printed appendix scores** changes 32 of 49 all-trial means, 17 of 49 OOD means, and 11 of 21 residual-minus-base OOD gaps at the reported four-decimal precision. For example, the 20 base-policy scores for `rubix-stack-v1` average 0.2500. Both tables print 0.2625. The manuscript build preserves the submitted scores and flags the discrepancy beside the trial table. The original rollout records are needed to identify which scores to use in a scientific comparison. [Metric definitions](../manuscript/Chapters/Methodology.tex) · [Trial rows](../manuscript/Chapters/Appendix.tex) · [Reported summaries](../manuscript/Chapters/Results.tex)
+
 ## What remains necessary for physical reproduction
 
 | Missing evidence | What it would establish |

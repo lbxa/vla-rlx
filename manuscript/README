@@ -1,0 +1,76 @@
+Building the thesis
+===================
+
+Run these commands from the repository root.
+
+    cd manuscript
+    latexmk
+
+Use TeX Live or MacTeX with latexmk 4.84 or later, pdfLaTeX, Biber, and
+MakeIndex. The project configuration runs all the passes needed to resolve
+references, contents, and page positions. Open build/main.pdf.
+To rebuild from scratch, run `latexmk -gg` in the same directory.
+
+ClassicThesis.pdf beside the source is the original style manual. The
+archived thesis submission is in ../website/public/files/thesis.pdf.
+
+Manuscript license
+==================
+
+Except where otherwise indicated, the original text and illustrations in
+this thesis by Lucas Barbosa and contributors are licensed under the
+Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International
+License (CC BY-NC-ND 4.0). See LICENSE or
+https://creativecommons.org/licenses/by-nc-nd/4.0/ for the terms.
+The ClassicThesis template carries the GNU General Public License in COPYING.
+
+Tables in the outer margin
+==========================
+
+Use widetable for a table that fits on one page. Give tabularx the local
+\linewidth and an X column wherever text should wrap. Captions and labels
+work like those in a standard table.
+
+    \begin{widetable}[tbp]
+      \caption{Evaluation conditions}\label{tab:evaluation-conditions}
+      \begin{tabularx}{\linewidth}{@{}l X@{}}
+        \toprule
+        Condition & Description \\
+        \midrule
+        In-distribution & Initial pose near the training configuration. \\
+        \bottomrule
+      \end{tabularx}
+    \end{widetable}
+
+For a table that spans pages, place a longtable inside widetablepages.
+This starts a fresh page and restores the regular text block after the
+final row. Use longtable's \endfirsthead and \endhead to repeat column
+headings. Chapters/Appendix.tex contains the full trial table.
+
+A Classic Thesis Style v4.2
+An Homage to The Elements of Typographic Style
+Copyright (C) 2015 André Miede http://www.miede.de
+
+Please see the file ClassicThesis.pdf for more information.
+Your comments are highly appreciated.
+
+If you like the style then I would appreciate a postcard. My address 
+can be found in the file ClassicThesis.pdf. A collection of the 
+postcards I received so far is available online at 
+http://postcards.miede.de
+
+License:
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; see the file COPYING.  If not, write to
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.

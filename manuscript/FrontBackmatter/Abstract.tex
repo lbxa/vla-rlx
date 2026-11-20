@@ -1,0 +1,12 @@
+%*******************************************************
+% Abstract
+%*******************************************************
+%\renewcommand{\abstractname}{Abstract}
+\cleardoublepage
+\pdfbookmark[0]{Abstract}{Abstract}
+
+\chapter*{Abstract}
+% This thesis examines whether a small online \ac{RL} adapter can extend the versatility of generalist \ac{VLA} transformers.  
+% A frozen \ac{VLA} backbone is paired with a lightweight \ac{PPO} module that updates only the final transformer block. The approach is tested on six manipulation tasks in IsaacSim and then transferred to a UR5e arm under distribution shifts in object mass, lighting and kinematics. 
+
+This thesis investigates the effectiveness of \ac{RL} algorithms used as residual adapters on top of large pre trained \ac{VLA} policies for real world robotic manipulation. A frozen \ac{VLA} backbone provides a generalist visuomotor prior, while a compact \ac{RL} controller learns an additive residual correction to the base action. The objective is not to show that \ac{RL} outperforms the underlying \ac{VLA} policy, but to determine which \ac{RL} algorithms most effectively exploit a fixed pre trained policy in this residual setting. The study is conducted entirely on a physical SO-101 3D printed robotic arm controlled via teleoperation, without any use of simulation. Demonstrations collected through teleoperation are combined with on robot rollouts to train and evaluate multiple continuous control actor critic algorithms as residual adapters. A suite of tabletop reaching and manipulation tasks is used to compare these algorithms under variations in objects, viewpoints, and dynamics. Performance is assessed in terms of task success rate, adaptation speed, sample efficiency, and the stability and safety of online learning on hardware. The work provides a reproducible real robot pipeline and an evaluation protocol for benchmarking residual \ac{RL} adapters on top of pre trained \ac{VLA} policies, together with practical guidance for selecting \ac{RL} backends for foundation model based robotic systems.

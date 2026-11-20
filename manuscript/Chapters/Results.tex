@@ -1,0 +1,195 @@
+\chapter{Results}
+
+\section{Experimental Results}
+
+\Cref{tab:main_results_condensed} summarizes performance on all seven evaluation tasks. The trials follow the 5--5--10 protocol in \cref{sec:method:trial_protocol}, with \ac{ID} trials (1--5), dynamic perturbation trials (6--10), and \ac{OOD} trials (11--20). \Cref{tab:main_results} gives the \ac{DTP} score $P_{\text{task}} \in [0, 1]$ for each trial. Recomputing from these trial scores gives different values for 60 of the 119 entries in the summary (see \cref{sec:appendix:results_monolith}).
+
+\begin{widetable}[htbp]
+    \footnotesize
+    \caption[Condensed task progress for all seven tasks]{Condensed \ac{DTP} $P_{\text{task}}$ for all $7$ tasks. Rows report the \ac{MP} over all $20$ real world rollouts, the generalization score $J_{\text{gen}}$ over the OOD block (trials $11$–$20$), and the transfer gap $\Delta_{\text{gen}}$ between $\mResRL$ and $\mBase$. For compactness, this table reports point estimates only; 95\% confidence interval values are omitted and this summary is intended purely for display.}
+    \label{tab:main_results_condensed}
+    \begin{tabularx}{\linewidth}{@{}>{\RaggedRight\arraybackslash}X l *{7}{c} @{}}
+        \toprule
+        \multirow{2}{*}{\textbf{Task}} &
+        \multirow{2}{*}{\textbf{Metric}} &
+        \multirow{2}{*}{\shortstack[c]{\textbf{Base}\\\textbf{policy}}} &
+        \multicolumn{3}{c}{\textbf{RL only}} &
+        \multicolumn{3}{c}{\textbf{Residual}} \\
+        \cmidrule(lr){4-6}\cmidrule(lr){7-9}
+          &   &   & \textbf{TD3} & \textbf{SAC} & \textbf{PPO}
+                  & \textbf{TD3} & \textbf{SAC} & \textbf{PPO} \\
+        \midrule
+
+        \multirow{3}{=}{\texttt{rubix-stack-v1}}
+          & $MP$                 & $0.2625$ & $0.2375$ & $0.2750$ & $0.2125$ & $0.6750$ & $0.4375$ & $0.6750$ \\
+          & $J_{\text{gen}}$     & $0.1250$ & $0.1250$ & $0.2500$ & $0.1250$ & $0.6000$ & $0.3750$ & $0.6000$ \\
+          & $\Delta_{\text{gen}}$&
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{$0.4750$} &
+                \multicolumn{1}{c}{$0.2500$} &
+                \multicolumn{1}{c}{$0.4750$} \\
+        \midrule
+
+        \multirow{3}{=}{\texttt{bus-table-easy-v1}}
+          & $MP$                 & $0.5000$ & $0.3625$ & $0.4500$ & $0.3375$ & $0.6750$ & $0.6000$ & $0.6750$ \\
+          & $J_{\text{gen}}$     & $0.6250$ & $0.6250$ & $0.6750$ & $0.5750$ & $0.8750$ & $0.8000$ & $0.8750$ \\
+          & $\Delta_{\text{gen}}$&
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{$0.2500$} &
+                \multicolumn{1}{c}{$0.1750$} &
+                \multicolumn{1}{c}{$0.2500$} \\
+        \midrule
+
+        \multirow{3}{=}{\texttt{bus-table-medium-v1}}
+          & $MP$                 & $0.3125$ & $0.1875$ & $0.3125$ & $0.1750$ & $0.5500$ & $0.5375$ & $0.5250$ \\
+          & $J_{\text{gen}}$     & $0.2500$ & $0.1500$ & $0.2750$ & $0.1250$ & $0.6000$ & $0.6000$ & $0.6000$ \\
+          & $\Delta_{\text{gen}}$&
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{$0.3500$} &
+                \multicolumn{1}{c}{$0.4500$} &
+                \multicolumn{1}{c}{$0.3500$} \\
+        \midrule
+
+        \multirow{3}{=}{\texttt{bus-table-hard-v1}}
+          & $MP$                 & $0.2188$ & $0.1562$ & $0.2188$ & $0.0625$ & $0.5625$ & $0.5312$ & $0.5312$ \\
+          & $J_{\text{gen}}$     & $0.1250$ & $0.1250$ & $0.2250$ & $0.1250$ & $0.6000$ & $0.6250$ & $0.6000$ \\
+          & $\Delta_{\text{gen}}$&
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{$0.4750$} &
+                \multicolumn{1}{c}{$0.5000$} &
+                \multicolumn{1}{c}{$0.4750$} \\
+        \midrule
+
+        \multirow{3}{=}{\texttt{close-bottle-lid-v1}}
+          & $MP$                 & $0.5750$ & $0.3125$ & $0.4375$ & $0.3125$ & $0.6250$ & $0.6500$ & $0.7500$ \\
+          & $J_{\text{gen}}$     & $0.4000$ & $0.3750$ & $0.4250$ & $0.3750$ & $0.6500$ & $0.7000$ & $0.7500$ \\
+          & $\Delta_{\text{gen}}$&
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{$0.2500$} &
+                \multicolumn{1}{c}{$0.3000$} &
+                \multicolumn{1}{c}{$0.3500$} \\
+        \midrule
+
+        \multirow{3}{=}{\texttt{erase-whiteboard-v1}}
+          & $MP$                 & $0.8125$ & $0.6250$ & $0.7875$ & $0.6000$ & $0.9625$ & $1.0000$ & $0.9625$ \\
+          & $J_{\text{gen}}$     & $0.7000$ & $0.6250$ & $0.7750$ & $0.6000$ & $0.9250$ & $1.0000$ & $0.9500$ \\
+          & $\Delta_{\text{gen}}$&
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{$0.2250$} &
+                \multicolumn{1}{c}{$0.3000$} &
+                \multicolumn{1}{c}{$0.2500$} \\
+        \midrule
+
+        \multirow{3}{=}{\texttt{close-french-press-v1}}
+          & $MP$                 & $0.3750$ & $0.1250$ & $0.2000$ & $0.1250$ & $0.6250$ & $0.7375$ & $0.6250$ \\
+          & $J_{\text{gen}}$     & $0.1250$ & $0.1250$ & $0.1750$ & $0.1250$ & $0.6000$ & $0.6750$ & $0.6000$ \\
+          & $\Delta_{\text{gen}}$&
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{--} &
+                \multicolumn{1}{c}{$0.4750$} &
+                \multicolumn{1}{c}{$0.5500$} &
+                \multicolumn{1}{c}{$0.4750$} \\
+        \bottomrule
+    \end{tabularx}
+\end{widetable}
+
+\section{Result Analysis}
+\label{sec:results:analysis}
+
+Across all seven tasks, the frozen \textsc{Base} policy achieves only moderate mean progress and generalization, while pure RL baselines rarely offer consistent gains and often underperform \textsc{Base} in both MP and $J_{\text{gen}}$. Residual RL adapters instead improve performance on every task, with higher MP and strictly positive transfer gaps $\Delta_{\text{gen}}$ in all settings. \cref{fig:results:overall} illustrates this hierarchy, showing residual methods consistently outperforming both baselines across aggregate metrics. The full per–trial breakdown in \cref{tab:main_results} confirms that these gains persist across ID, dynamic perturbation, and OOD phases rather than being driven by a few outlier rollouts.
+
+\bigdoublefigure[
+  pos=tbhp,
+  mainlabel={fig:results:overall},
+  maincaption={Overall performance comparison across all seven manipulation tasks. Left: Mean task progress aggregated across all 20 trials. Right: Generalization scores from \ac{OOD} trials (11--20). Residual \ac{RL} methods consistently outperform both the frozen base policy and pure \ac{RL} approaches. Error bars indicate 95\% confidence intervals.},
+  mainshortcaption={Overall and generalization performance.},
+  leftopt={width=0.47\textwidth},
+  leftlabel={fig:results:overall:mp},
+  leftcaption={Mean task progress (all trials).},
+  leftshortcaption={Mean progress.},
+  rightopt={width=0.47\textwidth},
+  rightlabel={fig:results:overall:gen},
+  rightcaption={Generalization score (\ac{OOD} trials).},
+  rightshortcaption={Generalization.},
+  spacing={\hfill}
+]
+{Plots/01_overall_mean_progress}{Plots/02_generalization_comparison}
+
+In OOD conditions, residual adapters raise $J_{\text{gen}}$ by approximately $0.23$ to $0.55$ above the frozen \textsc{Base} across the task suite, with the largest improvements on the hardest, cluttered, or contact–rich tasks (\texttt{rubix-stack-v1}, \texttt{bus-table-hard-v1}, \texttt{close-french-press-v1}) and smaller but still positive gains where \textsc{Base} is already strong (\texttt{erase-whiteboard-v1}, \texttt{close-bottle-lid-v1}). This pattern is quantified in \cref{fig:results:transfer}, which presents both the transfer gap and a head-to-head comparison of pure versus residual RL. The consistent positive $\Delta_{\text{gen}}$ across all methods supports the hypothesis that residual RL is most valuable when the backbone struggles under distribution shift, while still offering incremental benefit on easier regimes.
+
+\bigdoublefigure[
+  pos=tbhp,
+  mainlabel={fig:results:transfer},
+  maincaption={Analysis of residual \ac{RL} benefits. Left: Transfer gap ($\Delta_{\text{gen}}$) measuring generalization improvement over the frozen base policy, with Res-SAC achieving $+0.46$. Right: Head-to-head comparison by algorithm family, demonstrating consistent improvements of $+0.50$ to $+0.55$ regardless of underlying \ac{RL} method. Error bars indicate 95\% confidence intervals.},
+  mainshortcaption={Transfer gap and algorithm comparison.},
+  leftopt={width=0.47\textwidth},
+  leftlabel={fig:results:transfer:gap},
+  leftcaption={Transfer gap by residual method.},
+  leftshortcaption={Transfer gap.},
+  rightopt={width=0.47\textwidth},
+  rightlabel={fig:results:transfer:compare},
+  rightcaption={Pure \ac{RL} vs.\ Residual \ac{RL}.},
+  rightshortcaption={Pure vs.\ Residual.},
+  spacing={\hfill}
+]
+{Plots/03_transfer_gap}{Plots/06_rl_vs_residual_rl}
+
+\cref{fig:results:pertask} provides a per-task breakdown alongside a comparison of the three residual algorithms. Percentage improvements range from 18\% on tasks where \textsc{Base} already performs well to over 150\% on the most challenging manipulation scenarios.
+
+\bigdoublefigure[
+  pos=tbhp,
+  mainlabel={fig:results:pertask},
+  maincaption={Per-task performance analysis. Left: Comparison between base policy and best residual method, with relative improvements annotated. Right: Detailed breakdown of Res-TD3, Res-SAC, and Res-PPO across tasks for mean progress and generalization. Error bars indicate 95\% confidence intervals.},
+  mainshortcaption={Per-task and algorithm breakdown.},
+  leftopt={width=0.47\textwidth},
+  leftlabel={fig:results:pertask:breakdown},
+  leftcaption={Base vs.\ best Res-RL by task.},
+  leftshortcaption={Base vs.\ Res-RL.},
+  rightopt={width=0.47\textwidth},
+  rightlabel={fig:results:pertask:algorithms},
+  rightcaption={Residual algorithm comparison.},
+  rightshortcaption={Algorithm comparison.},
+  spacing={\hfill}
+]
+{Plots/04_per_task_breakdown}{Plots/05_residual_rl_comparison}
+
+Comparing residual algorithms, SAC adapters are the most reliable, achieving the highest $J_{\text{gen}}$ on the most demanding tasks and the only near–perfect OOD block on \texttt{erase-whiteboard-v1}. TD3 and PPO residuals typically match SAC within one progress level, but exhibit slightly higher variance across trials and tasks. \cref{fig:results:summary} synthesizes these findings: Res-SAC achieves a generalization score of $0.78$, representing a 134\% improvement over the frozen \textsc{Base}. Furthermore, performance remains robust across task difficulty levels, as demonstrated on the Bus Table environment variants.
+
+\bigdoublefigure[
+  pos=tbhp,
+  mainlabel={fig:results:summary},
+  maincaption={Summary of key findings. Left: Comparison across policy paradigms showing Res-SAC achieves $0.78$ generalization; 134\% above the base policy. Right: Robustness to task difficulty on Bus Table, where \textsc{Base} degrades from $0.63$ to $0.13$ while Res-SAC maintains $0.68$--$1.00$. Shaded regions indicate 95\% confidence bands.},
+  mainshortcaption={Summary and difficulty robustness.},
+  leftopt={width=0.47\textwidth},
+  leftlabel={fig:results:summary:hero},
+  leftcaption={Policy paradigm comparison.},
+  leftshortcaption={Paradigm comparison.},
+  rightopt={width=0.47\textwidth},
+  rightlabel={fig:results:summary:difficulty},
+  rightcaption={Performance vs.\ task difficulty.},
+  rightshortcaption={Difficulty robustness.},
+  spacing={\hfill}
+]
+{Plots/07_hero_summary}{Plots/08_task_difficulty}
+
+Overall, the results indicate that coupling a frozen VLA backbone with a lightweight residual RL head is a more effective use of limited real–world interaction than training RL policies from scratch on the same data budget.

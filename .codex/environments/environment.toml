@@ -1,0 +1,15 @@
+version = 1
+name = "VLA-RLX"
+
+[setup]
+script = "uv sync --locked --project results && (cd website && bun install --frozen-lockfile)"
+
+[[actions]]
+name = "Test results analysis"
+icon = "run"
+command = "uv run --locked --project results python -m unittest discover -s results -p 'test_*.py'"
+
+[[actions]]
+name = "Verify website"
+icon = "run"
+command = "cd website && bun run lint && bun run typecheck && bun run build"

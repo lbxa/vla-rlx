@@ -1,0 +1,116 @@
+% \chapter{Discussion}
+% \label{sec:discussion}
+
+% \section{Implications of Residual RL on VLA Behaviour}
+
+% \section{Limitations}
+
+% Task success is very linked to hardware quality, and not having a wrist camera was a mistake that was made early on that was not rectified. This caused grasping accuracy to decrease exponentially significantly. Different camera angles helped fix this, but ultimately wrist cameras would be a superior decision. 
+
+% The choice of only having a single arm manipulator limited the experiments to very simple one-arm tasks. Having a bimanual setup would allow for more complicated, dexterous tasks such as shirt folding to be completed. However, this would double the cost of the experiment. 
+
+% The experiments are only run on a single embodiment of an SO-101 3D printed arm multiple other embodiments should be studied using this residual approach to test cross-embodiment, such as more sophisticated table-top arms, such as the Franka, the Panda, the URI 5. But this is all mostly time constraints. 
+
+% Sparse rewards can make it challenging for RL to scale across long-horizon tasks due to the agent having difficulty finding the right direction in the gradient steps to accumulate the highest expected return. Potential strategies involve providing partial but denser rewards throughout the task where partial completion serves a stronger signal than a simple binary yes/no when the task is complete. 
+
+% More real-world environments and camera angles.
+
+% \section{Future Work}
+
+% Adding more VLAs to ablate robustness of residual RL policiy
+
+% Adding more RL algorithms to survey effectiveness of RL across the board
+
+% \begin{importantbox}{Big idea}
+% Experimenting with different manifolds  for generating stochastic noise on the residual layer to increase sample efficiency by removing redundant noise.
+
+% Potentially the manifold could be learned by a neural network. This could be BS and called something else I'm not aware of.
+% \end{importantbox}
+
+% This works focused primarily on real-world results because I think that's where the industry is lacking the most. The deep motivations behind this work is to lay the foundations for one day abundant household robotics, and for that we need innovations in the real world. However, there are still gains to be made in simulation, and a very exciting avenue of future work is co-training the residual policies with both real and simulated data. 
+
+% \begin{importantbox}{Big idea}
+% This work does not concern itself with modifying the weights of the base policy and instead decides to add residual weights. There are exciting opportunities in the future for a hybrid policy that can dynamically regulate between residual updating and base policy fine-tuning/updating.
+
+% What I mean by this is that there are certain times where the residual is all you need because it's not a huge dramatic shift in learning (e.g., just fine adjustments of motor skills). But there are times where the weights of the base policy need to be updated because it's a deeper lesson to be learned. A policy that can regulate between both of these modes is a very interesting avenue of research.
+% \end{importantbox}
+
+% \begin{importantbox}[blue]{Moved from appendix}
+% This honors thesis addresses only \textbf{RQ2} from \S\ref{sec:rqs}. The remaining questions form a rich agenda for follow-up studies.
+
+% \subsection{RQ1: Generalization of Foundation Models}
+% Large teams with extensive resources are actively exploring this space, notably $\pi_0$ \cite{PI02024}, Google Gemini \cite{GEMER2025} and Helix \cite{HELIX2025}. Their progress highlights both the promise of broad pretraining and the significant compute budget required to close the generalization gap across diverse real-world domains.
+
+% \subsection{RQ3: Modular Architectures for Robust Real-Time Control}
+% Early prototypes such as GR00T and Helix already employ dual-system designs that separate fast motor control from slower deliberative planning \cite{GR00T2025, HELIX2025}. Robust empirical evaluations under latency stress, sensor noise, and unexpected obstacles remain limited. Future work should benchmark modular controllers on standardized manipulation suites and quantify the trade-off between safety guarantees and task optimality.
+
+% \subsection{RQ4: Communication Protocols Between Modules}
+% The optimal \textit{latent channel} abstraction remains a theoretical question. Information bottleneck formulations, symbolic interfaces, and stochastic latent channels each offer distinct advantages. Insights from neuroscience and cognitive science on hierarchical motor control can guide the design of the protocol. Small scale simulation experiments could compare these interfaces in sample efficiency and retrain cost, laying the foundation for larger physical studies.
+
+% These avenues require substantial hardware, data, and interdisciplinary collaboration, but promise to advance the reliability and scalability of real-world robotic foundation models. They also provide an ideal scope for a focused graduate thesis.
+% \end{importantbox}
+
+
+% ======================== AI ========================  
+% ======================== AI ========================  
+% ======================== AI ========================  
+% ======================== AI ========================  
+
+\chapter{Discussion}
+\label{sec:discussion}
+
+\section{Implications of Residual RL on VLA Behaviour}
+
+This thesis set out to answer \textbf{RQ2}: whether online residual RL can recover or surpass baseline performance of a frozen VLA policy under real distribution shift, within a small budget of real robot trials. Across all seven manipulation tasks, the experiments show that residual RL adapters consistently improve both mean progress (MP) and OOD generalization score ($J_{\text{gen}}$) relative to the frozen base policy and RL-only baselines.
+
+In the hardest cluttered settings (\texttt{rubix-stack-v1}, \texttt{bus-table-\allowbreak medium-v1}, \texttt{bus-table-\allowbreak hard-v1}, \texttt{close-french-\allowbreak press-v1}), residual TD3, SAC, and PPO raise $J_{\text{gen}}$ by roughly $0.35$–$0.55$ over the base policy, while RL-only baselines remain at or below base performance. Residual adapters therefore exploit the visuomotor prior rather than relearning control from scratch. The VLA backbone provides reliable perception and coarse action proposals; the residual head refines contact geometry, approach angles, and recovery from small mistakes.
+
+The DTP metric clarifies how this synergy manifests. Base policies often reach partial progress levels ($P_{\text{task}} \in \{0.25, 0.50, 0.75\}$) yet fail to convert near-success into completion, especially under OOD shifts. Residual adapters convert many of these borderline rollouts into full task success, indicating that RL mostly learns local corrections around competent but brittle behaviours rather than new skills from zero. This matches the design intent of residual RL as a “last mile” controller that closes the gap between generalist policies and robust manipulation.
+
+Dynamic perturbation trials highlight another implication. When objects are nudged or the arm is disturbed mid-trajectory, base policies lack strong closed-loop recovery, while residual adapters track the evolving scene and steer the system back toward successful configurations. This suggests that residual RL is not only correcting static biases in the base policy but is also improving feedback control in contact-rich regimes.
+
+Algorithm choice remains secondary to the architecture. Residual TD3, SAC, and PPO all deliver substantial gains with only tens of trials, while their RL-only counterparts underperform due to sparse rewards and limited data. The main lesson for VLA-based robot systems is architectural: with a strong frozen backbone and well-shaped progress rewards, a lightweight residual head offers a practical path to real-world adaptation that avoids catastrophic forgetting in the base model and respects tight trial budgets.
+
+
+\section{Limitations}
+
+Several limitations restrict both the breadth of the claims and the absolute performance reported.
+
+First, hardware and sensing place a hard ceiling on task success. The SO-101 is a low-cost, 3D-printed platform with modest servo quality and no wrist-mounted camera. The reliance on fixed front and top cameras leads to occlusions and depth ambiguity during grasping, particularly for tightly constrained tasks such as \texttt{close-bottle-lid-v1} and \texttt{close-french-press-v1}. Alternative camera placements alleviated some failures, but a calibrated wrist camera would likely yield sharper improvements than any change in learning algorithm.
+
+Second, the experiments consider only a single, mono-manual embodiment and a small suite of tabletop tasks. One-arm manipulation is a natural starting point for residual RL, yet it excludes bimanual behaviours such as cloth folding or coordinated container handling. Results may not transfer directly to higher-DOF or torque-controlled platforms such as Franka, Panda, or UR series arms, even though the residual architecture is, in principle, portable.
+
+Third, the algorithmic scope is narrow. Only three actor–critic methods (TD3, SAC, PPO) are evaluated as residual adapters, under one reward shaping design based on DTP. Hyperparameters are tuned only coarsely, and no comparison is made against alternative adaptation mechanisms such as supervised fine-tuning of the VLA, MAML-style meta-learning, or pure behaviour cloning from post-adaptation rollouts. The observed ranking between residual algorithms should therefore be interpreted as indicative rather than definitive.
+
+Fourth, data and evaluation are limited by feasibility. Each method–task pair is evaluated with a single training run and 20 real-world rollouts in the 5–5–10 protocol. This budget is sufficient to reveal clear trends but not to characterise rare failure modes, long-term continual learning, or safety statistics at industrial reliability levels. Moreover, all experiments are conducted in a single lab environment with controlled lighting and clutter distributions. Broader environmental diversity, more camera geometries, and repeated training seeds would strengthen external validity.
+
+
+\section{Future Work}
+
+This thesis focuses experimentally on \textbf{RQ2} and on a single residual architecture applied to one VLA backbone and one physical platform. The remaining research questions from \S\ref{sec:rqs}, together with the limitations above, define a broader agenda.
+
+\subsection{Algorithmic extensions for residual RL}
+
+Within the residual RL setting itself, several directions are immediate. A natural step is to ablate robustness across multiple VLA backbones and embodiments, testing whether the gains observed here persist when the backbone, robot, and sensing stack vary. Expanding the set of residual learners beyond TD3, SAC, and PPO would allow a more systematic survey of which RL design choices matter most in the low-data, real-world regime.
+
+Exploration remains a key bottleneck. The current policies inject Gaussian action noise in the residual head, which ignores structure in the underlying control manifold. One promising idea is to learn a low-dimensional “noise manifold” inside the residual layer, so that exploration respects kinematic constraints and typical contact patterns instead of sampling redundant or unsafe directions. This manifold could be parameterised by a small neural network trained from residual gradients or offline demonstrations, turning exploration into a learned prior rather than a hand-crafted distribution.
+
+Another avenue is to relax the strict freezing of the VLA backbone. The present work holds the backbone fixed and updates only the residual, which avoids catastrophic forgetting but prevents deeper representation updates when the environment truly diverges from pre-training. A hybrid policy that can switch between pure residual updates and selective base-policy fine-tuning, possibly with different learning rates or trust regions, could allow “shallow” corrections for small shifts and “deep” representation updates when new semantics must be learned. Designing a principled scheduler between these modes is an open problem.
+
+Finally, the experiments here prioritise real-world results. A complementary extension is to co-train residual policies on a mixture of simulated and real rollouts, using simulation to pretrain exploration strategies and value functions, then refining them on hardware. Such mixed-regime training could reduce real-world trial budgets while preserving the safety and realism that motivated this work.
+
+\subsection{RQ1: Generalization of Foundation Models}
+
+Large teams with substantial compute are already probing the raw generalization capacity of VLA-style foundation models across many robots and tasks, for example $\pi_0$ \cite{PI0.52025}, Gemini Robotics \cite{GEMER2025}, and Helix \cite{HELIX2025}. Their progress highlights both the promise of broad pretraining and the steep cost of closing the generalization gap across diverse real-world domains. A natural extension of this thesis is to place residual RL in that context: quantify how much of the remaining gap after large-scale pretraining can be closed by modest residual adaptation, and under what conditions pretraining alone suffices.
+
+\subsection{RQ3: Modular Architectures for Robust Real-Time Control}
+
+Early systems such as GR00T and Helix already adopt modular designs that separate fast motor control from slower deliberative planning. Systematic evaluations under latency stress, sensor noise, and unexpected obstacles remain scarce. Future work should benchmark modular controllers, including residual RL adapters, on standard manipulation suites while varying communication delays and safety constraints. Quantifying the trade-off between hard safety guarantees and task optimality in these architectures is essential for deployment.
+
+\subsection{RQ4: Communication Protocols Between Modules}
+
+The choice of communication abstraction between modules is still largely theoretical. Symbolic messages, stochastic latent channels, and information bottleneck formulations each offer different balances between expressivity, robustness, and retraining cost. Insights from hierarchical motor control in neuroscience can guide the design of these protocols. Small-scale simulation studies that compare interfaces in terms of sample efficiency and transfer to new tasks would provide a grounded basis for later physical experiments.
+
+Collectively, these directions extend the core result of this thesis – that residual RL can substantially strengthen VLA-based manipulation under distribution shift – into a broader programme for building reliable, adaptive robotic foundation-model systems.
+
+\newpage

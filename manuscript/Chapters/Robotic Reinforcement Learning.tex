@@ -1,0 +1,56 @@
+\chapter{Robotic Reinforcement Learning}
+\label{sec:rrl}
+
+\epigraph{``It is comparatively easy to make computers exhibit adult level performance on intelligence tests or playing checkers, and difficult or impossible to give them the skills of a one-year-old when it comes to perception and mobility.''}{Hans Moravec \cite{MORAVEC1988}}
+
+% \begin{importantbox}{Notes to add}
+% Mentioned the focus on real-world trianing data on robots. The pro's and con's of simulation. It looks like co-trianing does produce stronger results but we need sample efficient means in the real world: SAC v PPO v TD3.
+% \end{importantbox}
+
+Building off the theoretical foundation developed in \S\ref{sec:rl_theory} now with focus on applying to \ac{RL} specifically to real robotic policies. \ac{RL} provides a complementary perspective to the largely offline-trained \ac{VLA} models. This section explores state-of-the-art \ac{RL} approaches in robotics, focusing on policy gradient methods and hybrid techniques, and briefly contrasts them with older, sample-inefficient algorithms.
+
+\section{Policy-Gradient Methods}
+
+\subsection{Actor-Critic}
+
+% \epigraph{``Give me six hours to chop down a tree and I will spend the first four sharpening the axe.''}{Abraham Lincoln}
+
+% \begin{flushright}{\slshape    
+%     Give me six hours to chop down a tree and\\
+%     I will spend the first four sharpening the axe.} \\ \medskip
+%     --- Abraham Lincoln
+% \end{flushright}
+
+% \begin{importantbox}{Important}
+%     Is this just repeating the section from elements? This should be talking more about residuals.
+% \end{importantbox}
+
+Policy gradient algorithms have become a cornerstone for continuous control in robotics. \ac{PPO} is a prime example, it's a model-free \ac{RL} method known for its stability and reliability in training complex policies \cite{PPO2017, IREVLA2025}. \ac{PPO} and related actor-critic methods (like \ac{A3C}/\ac{A2C}, \ac{DDPG}, \ac{SAC}) strike a balance between improving the policy and not deviating too far from the current policy (which can destabilize learning) \cite{A3C2016, DDPG2015, SAC2018}. In practice, \ac{PPO} has been used successfully in simulated robotics tasks and even on hardware for learning locomotion or manipulation, often achieving state-of-the-art results on benchmarks in terms of final performance. The theoretical appeal of policy gradient methods is that they directly optimize for the expected reward, which is aligned with the task goal, and can naturally handle continuous action spaces.
+
+Methodologically, \ac{PPO} introduces a clipped objective that limits how much a policy can change per update, addressing the variance and collapse issues of earlier policy gradient attempts. In robotics, \ac{PPO} and \ac{SAC} are frequently used as baseline algorithms that provide strong performance given enough training time \cite{PPO2017, SAC2018}. Key findings include their ability to learn robust behaviors (like grasping or walking) in simulation. However, even these advanced methods often require thousands to millions of environment interactions to converge, which is a challenge for real-world use. Nonetheless, they represent the state-of-the-art \ac{RL} toolkit that any new robotic learning approach must consider, either as a competitor or a component.
+
+% TODO
+% \begin{importantbox}
+
+% Leave the theoretical bedrock to \cref{sec:review}. Here lets mainly talk about the applications of PPO/GRPO in robotics. !IMPORTANT
+% \end{importantbox}
+
+\section{Hybrid RL Approaches}
+
+Modern robotics research often blends pure \ac{RL} with other strategies to improve efficiency and effectiveness. One hybrid approach is rewarded imitation learning or initializing \ac{RL} with demonstration data (sometimes called warm-start or behavioral cloning initialization). This can dramatically cut down exploration time by starting the agent near a good policy. Another approach is hierarchical \ac{RL}, where a high-level policy (could be learned or hand-designed) breaks tasks into subtasks that low-level controllers execute. This can be seen as a coarse form of integration between symbolic planning and \ac{RL}. \ac{PPO} itself can be considered hybrid in the sense that it leverages a critic (value function) to guide the policy updates (actor), combining value-based and policy-based methods \cite{PPO2017}. There are also model-based \ac{RL} methods, which learn a model of the environment and plan or generate imagined experience from it. These have shown higher sample efficiency on some tasks but can struggle when learned models are inaccurate. A recent trend is combining learning-based policies with search or planning at runtime for example, using a library of learned skills and a high-level search (like in the SayCan paradigm \cite{SAYCAN2022}, where an \ac{LLM} chooses which skill to apply). In terms of algorithmic innovation, soft policy gradient methods (like \ac{SAC} \cite{SAC2018}) maintain a maximum entropy objective that encourages exploratory yet stable behavior, which has improved learning speed and robustness. The literature also explores sim-to-real transfer (domain randomization, fine-tuning in real) as a hybrid between pure learning and leveraging simulated experience. Key takeaway: The cutting edge in \ac{RL} for robotics is not one algorithm, but combinations of learning strategies that address exploration, credit assignment, and transfer, often built on the backbone of strong policy gradient methods like \ac{PPO} \cite{PPO2017}.
+
+% \section{Real-World RL}
+
+% \begin{importantbox}{Notes}
+%    HI-SERL is the harness \cite{HISERL2024} supporting \ac{PPO}, \ac{SAC} and \ac{TD3}.
+
+%    Must talk about: there are definitely challenges of operating in the real world, like: Sample inefficiency, Sparse rewards during long horizon tasks, Safety
+% \end{importantbox}
+
+% Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+\section[Generalization in Real-World Environments]{Generalization in Real-World Environments: Current State and Gaps}
+
+\paragraph{Sample-inefficiency.}
+
+It's instructive to contrast the above with earlier generations of \ac{RL} that proved impractical for robotics due to sample inefficiency. Classic Q-learning and value-iteration methods (without function approximation) were limited to very small state spaces \cite{QLERN1992}. The advent of \ac{DQN} showed that neural nets could learn value functions from high-dimensional inputs, but algorithms like \ac{DQN} (and its variants) still required enormous numbers of steps (e.g., millions of frames on Atari) to learn, and extended poorly to continuous control \cite{DQN2013}. Early policy gradient algorithms like REINFORCE had high variance and typically needed careful tuning and baseline subtraction to work \cite{REINFORCE1992}. Methods like \ac{ES} or grid search over policies were even more sample-inefficient, though simpler \cite{ES2017}. In robotics, brute-force methods (like random search in policy space, or PILCO which attempted Gaussian process models) were limited by data requirements or model inaccuracies \cite{PILCO2011}. These outdated techniques are referenced for historical context: they underscore why the field pivoted to using function approximators (deep nets) and why on-policy learning alone is tough when each trial is costly. For instance, a robot hand learning to rotate an object with naive \ac{RL} could take hundreds of hours of practice, which is infeasible without simulation. Modern methods like \ac{PPO} improved stability but still rely on many trials \cite{PPO2017}; thus, much of the research has been about improving sample efficiency (via off-policy algorithms, better exploration, or leveraging prior data). Overall, the field has largely moved past pure trial-and-error learning towards more data-efficient hybrids, but the lessons from those older methods (the need for better exploration, the danger of unstable updates) inform today's algorithm design.

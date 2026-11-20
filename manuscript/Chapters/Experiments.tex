@@ -1,0 +1,219 @@
+\chapter{Experiments}
+
+\section{Overview of Experiments}
+\label{sec:exp_overview}
+
+The experimental suite evaluates residual \ac{RL} adapters on top of a frozen pre trained \ac{VLA} backbone for real world tabletop manipulation. Three controller variants are compared: (i) the unmodified backbone policy, (ii) a fine tuned policy without residual adaptation, and (iii) residual \ac{RL} adapters that learn an additive correction to the base action. The design goal is to test how effectively different residual \ac{RL} algorithms exploit a fixed pre trained policy under real distribution shifts.
+
+All experiments are conducted on a physical 3D printed SO-101 robotic arm without any use of simulation. Training and evaluation rely solely on real world interaction data from teleoperated demonstrations and on robot rollouts, so the reported results directly reflect performance under sensor noise, contact variability, and actuation delays.
+
+The task suite consists of seven tabletop manipulation tasks that vary in difficulty, horizon, and contact complexity. These include stacking two Rubik's cubes, bussing a table of pens and small objects at three increasing levels of clutter, placing a metal lid onto a bottle, erasing a red marker from a whiteboard with a deformable cloth, and closing a French press. Together, these tasks probe vision, precision grasping, dexterous manipulation, and long horizon behavior, and are described in more detail in \S\ref{sec:task_descriptions}.
+
+\section{Task Descriptions}
+\label{sec:task_descriptions}
+
+\subsection{Task 1: Rubik's Stack}
+
+The \texttt{rubix-stack-v1} requires the robot to stack two Rubik's cubes, with a smaller cube placed on top of a larger one. The cubes differ in colour and are randomly rotated between episodes, which challenges the visual perception of the backbone policy and the ability of the residual adapter to execute precise, stable grasps on non-axis-aligned objects.
+
+A rollout is considered successful when the smaller cube is grasped, lifted, and placed stably on top of the larger cube without either cube being knocked out of the workspace. The corresponding workspace layout is shown in \cref{fig:task1_rubiks_stack_views}.
+
+\bigdoublefigure[
+  pos=tbhp,
+  mainlabel={fig:task1_rubiks_stack_views},
+  maincaption={Front and top camera views of the Rubik's Stack workspace used for data collection and evaluation.},
+  mainshortcaption={Rubik's Stack workspace camera views.},
+  leftopt={width=0.47\textwidth},
+  leftlabel={fig:task1_rubiks_stack_front},
+  leftcaption={Front camera view of the Rubik's Stack workspace.},
+  leftshortcaption={Front view.},
+  rightopt={width=0.47\textwidth},
+  rightlabel={fig:task1_rubiks_stack_top},
+  rightcaption={Top camera view of the Rubik's Stack workspace.},
+  rightshortcaption={Top view.},
+  spacing={\hfill}
+]
+{Figures/Demos/rubix-stack-front}
+{Figures/Demos/rubix-stack-top}
+
+\subsection{Task 2: Bus Table (Easy)}
+\label{sec:task:bus_table}
+
+The \texttt{bus-table-easy-v1} asks the robot to clear a small tabletop by picking up a few coloured pens and a glue stick and placing them into a pen holder. The objects are glossy and interact with a PLA gripper, which induces slip and demands careful approach angles and positioning for reliable grasping.
+
+A rollout is considered successful when all objects are placed inside the pen holder and none are pushed or knocked off the table. The corresponding workspace layout is shown in \cref{fig:task2_bus_table_easy_views}.
+
+\bigdoublefigure[
+  pos=tbhp,
+  mainlabel={fig:task2_bus_table_easy_views},
+  maincaption={Front and top camera views of the Bus Table (Easy) workspace used for data collection and evaluation.},
+  mainshortcaption={Bus Table (Easy) workspace camera views.},
+  leftopt={width=0.47\textwidth},
+  leftlabel={fig:task2_bus_table_easy_front},
+  leftcaption={Front camera view of the Bus Table (Easy) workspace.},
+  leftshortcaption={Front view.},
+  rightopt={width=0.47\textwidth},
+  rightlabel={fig:task2_bus_table_easy_top},
+  rightcaption={Top camera view of the Bus Table (Easy) workspace.},
+  rightshortcaption={Top view.},
+  spacing={\hfill}
+]
+{Figures/Demos/bus-table-easy-front}
+{Figures/Demos/bus-table-easy-top}
+
+\subsection{Task 3: Bus Table (Medium)}
+\label{sec:task:bus_table_medium}
+
+The \texttt{bus-table-medium-v1} scales up Task 2 by increasing the number of pens and introducing an additional pen type with fewer reliable grasp points. The longer horizon with sparser rewards tests planning and persistence, while the novel geometry provides a stricter probe of dexterous grasping for both the backbone policy and the residual adapter.
+
+A rollout is considered successful when all objects are placed inside the pen holder and none are pushed or knocked off the table. The corresponding workspace layout is shown in \cref{fig:task3_bus_table_medium_views}.
+
+\bigdoublefigure[
+  pos=tbhp,
+  mainlabel={fig:task3_bus_table_medium_views},
+  maincaption={Front and top camera views of the Bus Table (Medium) workspace used for data collection and evaluation.},
+  mainshortcaption={Bus Table (Medium) workspace camera views.},
+  leftopt={width=0.47\textwidth},
+  leftlabel={fig:task3_bus_table_medium_front},
+  leftcaption={Front camera view of the Bus Table (Medium) workspace.},
+  leftshortcaption={Front view.},
+  rightopt={width=0.47\textwidth},
+  rightlabel={fig:task3_bus_table_medium_top},
+  rightcaption={Top camera view of the Bus Table (Medium) workspace.},
+  rightshortcaption={Top view.},
+  spacing={\hfill}
+]
+{Figures/Demos/bus-table-medium-front}
+{Figures/Demos/bus-table-medium-top}
+
+\subsection{Task 4: Bus Table (Hard)}
+\label{sec:task:bus_table_hard}
+
+The \texttt{bus-table-hard-v1} further increases the level of clutter, with many pens of varying shapes, diameters, and colours, together with a glue stick, arranged on a crowded tabletop. The robot must choose grasp sequences that avoid chain reactions, where an ill-chosen approach to one object can displace several others.
+
+A rollout is considered successful when all objects are placed inside the pen holder and none are pushed or knocked off the table. The corresponding workspace layout is shown in \cref{fig:task4_bus_table_hard_views}.
+
+\bigdoublefigure[
+  pos=tbhp,
+  mainlabel={fig:task4_bus_table_hard_views},
+  maincaption={Front and top camera views of the Bus Table (Hard) workspace used for data collection and evaluation.},
+  mainshortcaption={Bus Table (Hard) workspace camera views.},
+  leftopt={width=0.47\textwidth},
+  leftlabel={fig:task4_bus_table_hard_front},
+  leftcaption={Front camera view of the Bus Table (Hard) workspace.},
+  leftshortcaption={Front view.},
+  rightopt={width=0.47\textwidth},
+  rightlabel={fig:task4_bus_table_hard_top},
+  rightcaption={Top camera view of the Bus Table (Hard) workspace.},
+  rightshortcaption={Top view.},
+  spacing={\hfill}
+]
+{Figures/Demos/bus-table-hard-front}
+{Figures/Demos/bus-table-hard-top}
+
+
+\subsection{Task 5: Close Bottle Lid}
+\label{sec:task:bottle_lid}
+
+The \texttt{close-bottle-lid-v1} task evaluates precise pose estimation and alignment by asking the robot to place a metal lid onto its corresponding metal bottle. The tight clearance between lid and bottle rim makes the outcome highly sensitive to errors in end-effector positioning and orientation, stressing both the precision of the backbone policy and the corrective capacity of the residual adapter.
+
+A rollout is considered successful if the lid is grasped and lifted without being dropped, moved to a pose above the bottle opening, and placed so that it seats cleanly on the bottle rim. There is no requirement to twist or screw the lid on. The corresponding workspace layout is shown in \cref{fig:task5_bottle_lid_views}.
+
+\bigdoublefigure[
+  pos=tbhp,
+  mainlabel={fig:task5_bottle_lid_views},
+  maincaption={Front and top camera views of the Bottle Lid workspace used for data collection and evaluation.},
+  mainshortcaption={Bottle Lid workspace camera views.},
+  leftopt={width=0.47\textwidth},
+  leftlabel={fig:task5_bottle_lid_front},
+  leftcaption={Front camera view of the Bottle Lid workspace.},
+  leftshortcaption={Front view.},
+  rightopt={width=0.47\textwidth},
+  rightlabel={fig:task5_bottle_lid_top},
+  rightcaption={Top camera view of the Bottle Lid workspace.},
+  rightshortcaption={Top view.},
+  spacing={\hfill}
+]
+{Figures/Demos/bottle-lid-front}
+{Figures/Demos/bottle-lid-top}
+
+\subsection{Task 6: Erase Whiteboard}
+\label{sec:task:erase_whiteboard}
+
+The \texttt{erase-whiteboard-v1} involves using a deformable cloth to remove a red marker stroke from a vertical whiteboard. The deformable contact surface leads to variable contact patches and friction, making the dynamics non deterministic and challenging the ability of the residual adapter to compensate for unmodeled surface interactions.
+
+A rollout is considered successful when the cloth is grasped, pressed against the whiteboard, and moved such that the marked region is largely erased and only faint traces of the original stroke remain. The corresponding workspace layout is shown in \cref{fig:task6_erase_whiteboard_views}.
+
+\bigdoublefigure[
+  pos=tbhp,
+  mainlabel={fig:task6_erase_whiteboard_views},
+  maincaption={Front and top camera views of the Erase Whiteboard workspace used for data collection and evaluation.},
+  mainshortcaption={Erase Whiteboard workspace camera views.},
+  leftopt={width=0.47\textwidth},
+  leftlabel={fig:task6_erase_whiteboard_front},
+  leftcaption={Front camera view of the Erase Whiteboard workspace.},
+  leftshortcaption={Front view.},
+  rightopt={width=0.47\textwidth},
+  rightlabel={fig:task6_erase_whiteboard_top},
+  rightcaption={Top camera view of the Erase Whiteboard workspace.},
+  rightshortcaption={Top view.},
+  spacing={\hfill}
+]
+{Figures/Demos/erase-whiteboard-front}
+{Figures/Demos/erase-whiteboard-top}
+
+\subsection{Task 7: Close French Press}
+\label{sec:task:close_french_press}
+
+The \texttt{close-french-press} requires manipulating the lid of a French press by its thin metal rod. The rod is narrower than the gripper aperture, so the robot cannot form an enclosing grasp. Instead it stabilizes the lid through surface contact on the plastic knob. The task also involves pressing the plunger down against water resistance, combining precise stabilization with forceful actuation.
+
+A rollout is considered successful if the lid is grasped and lifted without sliding off the rod or knob, is properly positioned over the opening, and the plunger is pressed down until the knob reaches the closed position. The corresponding workspace layout is shown in \cref{fig:task7_close_french_press_views}.
+
+\bigdoublefigure[
+  pos=tbhp,
+  mainlabel={fig:task7_close_french_press_views},
+  maincaption={Front and top camera views of the Close French Press workspace used for data collection and evaluation.},
+  mainshortcaption={Close French Press workspace camera views.},
+  leftopt={width=0.47\textwidth},
+  leftlabel={fig:task7_close_french_press_front},
+  leftcaption={Front camera view of the Close French Press workspace.},
+  leftshortcaption={Front view.},
+  rightopt={width=0.47\textwidth},
+  rightlabel={fig:task7_close_french_press_top},
+  rightcaption={Top camera view of the Close French Press workspace.},
+  rightshortcaption={Top view.},
+  spacing={\hfill}
+]
+{Figures/Demos/french-press-front}
+{Figures/Demos/french-press-top}
+
+
+\section{Environment Setup for OOD Tests}
+\label{sec:ood_env}
+
+The tabletop workspace and sensing configuration are designed to induce controlled out-of-distribution (OOD) shifts along visual, dynamical, task, and environmental dimensions while remaining compatible with the tasks in \S\ref{sec:task_descriptions}. As summarized in \cref{tab:ood_shifts}, OOD conditions are introduced by modifying object appearance and geometry, contact properties, clutter, and partial failure events over repeated rollouts.
+
+\begin{table}[H]
+    \myfloatalign
+    \scriptsize
+    \caption[Out-of-distribution shift conditions]{Out-of-distribution (OOD) shift conditions used in the tabletop workspace. Each shift type is implemented by modifying the physical setup while keeping the underlying task instructions fixed.}
+    \label{tab:ood_shifts}
+    \begin{tabularx}{\textwidth}{lX}
+        \toprule
+        \tableheadline{Shift type} & \tableheadline{Workspace Implementation} \\
+        \midrule
+        Visual shift 
+        & Vary object colour and texture (e.g., different Rubik's cube faces, pen colours, metal vs plastic surfaces), adjust ambient lighting intensity and hue, and alter background appearance within the camera field of view. \\[0.4em]
+        Dynamics shift 
+        & Change object mass and friction (e.g., different pen coatings, metal versus plastic lids, cloth on whiteboard), or vary table coverings to modify sliding and sticking behaviour in contact-rich interactions. \\[0.4em]
+        Task configuration shift 
+        & Scale the number and arrangement of objects (Tasks~2–4), alter initial poses and relative spacing, or require interaction with deformable or partially supported objects (Tasks~5–7). \\[0.4em]
+        Environmental/clutter shift 
+        & Introduce distractor objects and increased clutter around the primary task region, or slightly reconfigure the workspace within the camera frame while keeping the target objects present. \\[0.4em]
+        Failure/recovery shift 
+        & Allow objects to slip, topple, or roll during execution, creating intermediate states that require re-grasping, re-approach, or local replanning instead of a single straight-line solution. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+All conditions are instantiated on the physical SO-101 tabletop setup using real objects, adjustable lighting, and fixed camera viewpoints. Success and failure on OOD trials are determined from synchronized RGB camera recordings and robot telemetry. This yields per-rollout success labels and, where applicable, intermediate progress indicators for reward definition and for reporting task success rates and failure modes.

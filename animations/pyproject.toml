@@ -1,0 +1,6 @@
+[project]
+name = "pca-residual-animation"
+version = "0.1.0"
+description = "Manim illustration of PCA-shaped residual exploration"
+requires-python = ">=3.12,<3.14"
+dependencies = ["manim==0.21.0", "numpy>=2.1"]

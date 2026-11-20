@@ -1,0 +1,102 @@
+%*******************************************************
+% Table of Contents
+%*******************************************************
+\cleardoublepage
+\pdfbookmark[0]{\contentsname}{tableofcontents}
+\setcounter{tocdepth}{2} % <-- 2 includes up to subsections in the ToC
+\setcounter{secnumdepth}{3} % <-- 3 numbers up to subsubsections
+\manualmark
+\markboth{\spacedlowsmallcaps{\contentsname}}{\spacedlowsmallcaps{\contentsname}}
+\BeforeStartingTOC[toc]{\small}
+\tableofcontents
+\automark[section]{chapter}
+\renewcommand{\chaptermark}[1]{\markboth{\spacedlowsmallcaps{#1}}{\spacedlowsmallcaps{#1}}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection\enspace\spacedlowsmallcaps{#1}}}
+%*******************************************************
+% List of Figures and of the Tables
+%*******************************************************
+\clearpage
+
+\begingroup 
+    \let\clearpage\relax
+    \let\cleardoublepage\relax
+    %*******************************************************
+    % List of Figures
+    %*******************************************************    
+    \pdfbookmark[0]{\listfigurename}{lof}
+    \listoffigures
+
+    \newpage
+
+    %*******************************************************
+    % List of Tables
+    %*******************************************************
+    \pdfbookmark[0]{\listtablename}{lot}
+    \listoftables
+        
+    \newpage
+    
+    %*******************************************************
+    % List of Listings
+    %*******************************************************      
+    \pdfbookmark[0]{\lstlistlistingname}{lol}
+    \lstlistoflistings 
+
+    \newpage
+    %*******************************************************
+    % Acronyms
+    %*******************************************************
+    \pdfbookmark[0]{Acronyms}{acronyms}
+    \markboth{\spacedlowsmallcaps{Acronyms}}{\spacedlowsmallcaps{Acronyms}}
+    \chapter*{Acronyms}
+    \begin{acronym}[UMLX]
+    \acro{A2C}{Advantage Actor-Critic}
+    \acro{A3C}{Asynchronous Advantage Actor-Critic}
+    \acro{AE}{Autoencoder}
+    \acro{AGI}{Artificial General Intelligence}
+    \acro{AI}{Artificial Intelligence}
+    \acro{BERT}{Bidirectional Encoder Representations from Transformers}
+    \acro{BPE}{Byte-Pair Encoding}
+    \acro{CLIP}{Contrastive Language-Image Pre-training}
+    \acro{CNN}{Convolutional Neural Network}
+    \acro{DDPG}{Deep Deterministic Policy Gradient}
+    \acro{DoF}{Degrees of Freedom}
+    \acro{DQN}{Deep Q-Network}
+    \acro{ES}{Evolutionary Strategies}
+    \acro{FiLM}{Feature-wise Linear Modulation}
+    \acro{GPT}{Generative Pre-trained Transformer}
+    \acro{GPU}{Graphics Processing Unit}
+    \acro{IK}{Inverse Kinematics}
+    \acro{KL}{Kullback-Leibler}
+    \acro{LLM}{Large Language Model}
+    \acro{LSTM}{Long Short-Term Memory}
+    \acro{MAML}{Model-Agnostic Meta-Learning}
+    \acro{MDP}{Markov Decision Process}
+    \acro{MLM}{Masked Language Model}
+    \acro{ID}{In-Distribution}
+    \acro{OOD}{Out-of-Distribution}
+    \acro{PID}{Proportional-Integral-Derivative}
+    \acro{PPO}{Proximal Policy Optimization}
+    \acro{ReLU}{Rectified Linear Unit}
+    \acro{RGB}{Red Green Blue}
+    \acro{RGB-D}{Red Green Blue - Depth}
+    \acro{RL}{Reinforcement Learning}
+    \acro{RNN}{Recurrent Neural Network}
+    \acro{ROS}{Robot Operating System}
+    \acro{SAC}{Soft Actor-Critic}
+    \acro{SARSA}{State-Action-Reward-State-Action}
+    \acro{SE3}[SE(3)]{Special Euclidean Group (3D)}
+    \acro{TD}{Temporal-Difference}
+    \acro{TD3}{Twin Delayed Deep Deterministic Policy Gradient}
+    \acro{TRPO}{Trust Region Policy Optimization}
+    \acro{URDF}{Unified Robot Description Format}
+    \acro{VAE}{Variational Autoencoder}
+    \acro{ViT}{Vision Transformer}
+    \acro{VLA}{Vision-Language-Action}
+    \acro{VLM}{Vision-Language Model}
+    \acro{VQA}{Visual Question Answering}
+    \acro{DTP}{Discretized Task Progress}
+    \acro{MP}{Mean Progress}
+    \acro{SFT}{Supervised Fine-Tuning}
+    \end{acronym}                     
+\endgroup

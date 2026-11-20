@@ -1,0 +1,10 @@
+\chapter{Modular Architectures}
+\label{sec:modular_architectures}
+
+\section{Two-Tier Control Paradigm}
+Robotic systems must react within milliseconds while planning in seconds or minutes. Neuroscience offers a template: the cerebellum executes rapid closed-loop motor commands, whereas cortical regions support slower deliberation. Recent robot controllers mimic this dichotomy by pairing a high-frequency reflex layer with a lower-frequency planner. Dual-process models such as GR00T and Helix report lower collision rates under sensor lag by delegating fast stabilization to an embedded policy and strategic decisions to a cloud-scale transformer \cite{GR00T2025, HELIX2025}. However, these demonstrations lack systematic evaluation across latency, noise, and obstacle perturbations, leaving open the question of whether modular control consistently outperforms monolithic policies in real-world settings.
+
+In summary, existing evidence suggests that a two-tier controller can improve robustness and that carefully designed message passing is critical. However, rigorous benchmarks and principled comparisons are lacking. Addressing these gaps motivates our forthcoming investigation of real-time robustness in modular control and the search for an optimal intermodule communication abstraction.
+
+\section{Latent Channel}
+The effective modularity depends on how the subsystems exchange information. Current designs span shared latent spaces trained end-to-end, explicit symbolic messages, and probabilistic belief states. Information bottleneck theory predicts that a minimal stochastic channel can preserve task-relevant cues while isolating subnetwork retraining costs. Constrained \ac{MDP} theory formalizes safety when a fast controller may veto a slower planner. Previous studies implicitly optimize communication, providing limited insight into which protocol best maintains global optimality after independent module updates.

@@ -1,0 +1,77 @@
+\begin{flushright}{\slshape    
+    \textit{We can only see a short distance ahead, \\
+    but we can see plenty there that needs to be done.}} \\ \medskip
+    --- \textsc{Alan Turing} \cite{TURING1950}
+\end{flushright}
+
+\bigskip
+
+% \chapter{Introduction}
+% \label{sec:intro}
+
+% \section{Motivation and Scope}
+
+% Robots operating in unstructured, changing environments often encounter conditions that differ from their training data. These \ac{OOD} environments pose a fundamental challenge: how can a robotic agent generalize its skills and adapt when faced with novel objects, lighting or task variations not seen before? Traditional robotics solutions, based on precise modeling and classical control, excel within well-modeled regimes but tend to break down under unmodeled dynamics or unforeseen situations \cite{RLSURVEY2013}. Meanwhile, modern \ac{AI} approaches have achieved remarkable generalization in domains like vision and language by leveraging massive data and expressive models \cite{RT12022, GATO2022, RT22023, PALM2023, OPENVLA2024, PI0.52025, HELIX2025, GR00T2025, GEMER2025}. Scaling these systems to real-world robots has proven difficult: initial gains can deliver up to 90 percent reliability across various tasks \cite{RT12022}, but the remaining 10 percent, comprised of rare edge cases that occur routinely in everyday environments, requires new techniques. This review scopes our discussion to three interrelated paradigms as promising paths toward overcoming that final gap: transformer-based foundation models (especially multimodal and \ac{VLA} models), advanced \ac{RL} techniques for continual adaptation, and hybrid architectures that combine learning-based methods with modular design inspired by neuroscience or classical frameworks. While we examine all three paradigms to frame a broader research agenda, the honors thesis will focus experimentally on online \ac{RL} adaptation within the two-term schedule, leaving foundation-model integration and full hybrid evaluation for future work.
+
+% \begin{importantbox}{Ideas to add}
+% The idea is not to use RL to fine-tune the weights of a large-scale VLA that has been explored in other works and has shown to cause catastrophic forgetting on the base model unless certain layers of frozen or Laura is applied. This work aims to combine RL with a large foundation model like a VLA to yield superior results than the sum of the parts. The two modules will be combined with an adapter-like interface where the RL parameters will be tuned separately to the VLA parameters. That way, there will be no chance of creating catastrophic forgetting of all the valuable representations learned by the VLA during pre-training. The RL can focus on what it's very good at, which is helping generalise already learned behaviour and adding potentially more robust dexterity to all manipulation tasks.
+
+% IMPORTANT:  cite all the sources that are doing RL fine-tuning directly on diffusion transformers, etc.
+% \end{importantbox}
+
+% \section{Contributions and Outline}
+
+% This thesis makes three primary contributions:
+
+% \begin{enumerate}
+%     \item A systematic, gap‑driven literature synthesis.  
+%     We map transformer–based \ac{VLA} models,
+%     online \ac{RL} and modular control into one
+%     coherent landscape and identify where state‑of‑the‑art systems
+%     fall short in \ac{OOD} generalization.
+%     \item An end‑to‑end experimental pipeline for fast on‑robot
+%     adaptation. We integrate a pretrained \ac{VLA} prior with a
+%     \ac{PPO} fine‑tuner and deploy the
+%     system on a UR5e arm.  The pipeline is fully reproducible and
+%     open‑sourced.
+%     \item We show that a lightweight residual RL head on top of a frozen VLA policy can recover a large fraction of performance lost under real world distribution shift, using only tens of physical trials instead of re training the full model.
+% \end{enumerate}
+
+% The remainder of this thesis is structured around three parts. ~\cref{part:background} reviews the surrounding literature and identifies the open problems that motivate the residual reinforcement learning approach used in this work. ~\cref{part:method} outlines the experimental design, metrics, and implementation strategy that define the evaluation pipeline. ~\cref{part:results} presents the empirical findings, including ablations, performance breakdowns, and error analyses that contextualize the strengths and limitations of the proposed method. Together, these parts form a coherent arc from motivation to methodology to empirical insight, guiding the reader through the conceptual foundations and practical contributions of the thesis.
+
+% =========================== AI ===========================
+% =========================== AI ===========================
+% =========================== AI ===========================
+
+% Keep the epigraph and chapter heading on the same page.
+\begingroup
+\let\clearpage\relax
+\let\cleardoublepage\relax
+\chapter{Introduction}
+\label{sec:intro}
+\endgroup
+
+\section{Motivation and Scope}
+
+Robots operating in unstructured, changing environments often encounter conditions that differ from their training data. These \ac{OOD} environments pose a fundamental challenge: how can a robotic agent generalize its skills and adapt when faced with novel objects, lighting or task variations not seen before? Traditional robotics solutions, based on precise modeling and classical control, excel within well-modeled regimes but tend to break down under unmodeled dynamics or unforeseen situations \cite{RLSURVEY2013}. Meanwhile, modern \ac{AI} approaches have achieved remarkable generalization in domains like vision and language by leveraging massive data and expressive models \cite{RT12022, GATO2022, RT22023, PALM2023, OPENVLA2024, PI0.52025, HELIX2025, GR00T2025, GEMER2025}. Scaling these systems to real-world robots has proven difficult: initial gains can deliver up to 90 percent reliability across various tasks \cite{RT12022}, but the remaining 10 percent, comprised of rare edge cases that occur routinely in everyday environments, requires new techniques.
+
+This thesis focuses on how to close that final gap by combining transformer-based foundation models with lightweight online adaptation on real hardware. We scope our discussion to three interrelated paradigms as promising paths toward robust \ac{OOD} behavior: transformer-based foundation models (especially multimodal and \ac{VLA} models), advanced \ac{RL} techniques for continual adaptation, and hybrid architectures that combine learning-based methods with modular design inspired by neuroscience or classical frameworks. While \cref{part:background} surveys all three paradigms to frame a broader research agenda, the empirical work in this thesis investigates \ac{RL}-driven adaptation of a frozen \ac{VLA} backbone on a physical SO-101 arm, with modular safety and control components inherited from the underlying LeRobot stack rather than evaluated in isolation.
+
+A key design choice is to \emph{not} fine-tune the weights of the large-scale \ac{VLA} directly with \ac{RL}. Prior work on \ac{RL} fine-tuning of high-capacity visuomotor and diffusion-style policies has shown that naively updating the full model can induce catastrophic forgetting of valuable pre-trained representations unless large subsets of weights are frozen or low-rank adaptation layers are carefully constrained. In contrast, this thesis treats the \ac{VLA} as a frozen visuomotor prior and attaches a residual \ac{RL} head that learns an additive correction in action space. The two modules are coupled through an adapter-like interface in which the residual parameters are trained independently of the backbone. This separation preserves the representations and instruction grounding learned during foundation-model pre-training while allowing the residual \ac{RL} head to specialize behavior to the target embodiment and task distribution. \ac{RL} is used where it is strongest - exploiting local experience to shape fine-grained motor behavior and improve robustness under distribution shift - without erasing the broad competence encoded in the base policy.
+
+\section{Contributions and Outline}
+
+This thesis makes three primary contributions:
+
+\begin{enumerate}
+    \item \textbf{A systematic, gap-driven literature synthesis.}  
+    We map transformer-based \ac{VLA} models, online \ac{RL} and modular control into one coherent landscape and identify where state-of-the-art systems fall short in \ac{OOD} generalization.
+
+    \item \textbf{An end-to-end experimental pipeline for residual adaptation on real hardware.}  
+    We integrate a pretrained \ac{VLA} prior (Isaac-Gr00t) with lightweight residual \ac{RL} adapters and deploy the system on a 3D-printed SO-101 tabletop arm. The pipeline provides standardized data collection, safety-aware control, and \ac{RL} training on real trajectories and is fully reproducible, with code to be released publicly upon thesis completion.
+
+    \item \textbf{Empirical evidence that residual \ac{RL} can efficiently recover \ac{OOD} performance.}  
+    We show that a lightweight residual \ac{RL} head on top of a frozen \ac{VLA} policy can recover a large fraction of performance lost under real-world distribution shift, using only tens of physical trials instead of retraining the full model.
+\end{enumerate}
+
+The remainder of this thesis is structured around three parts. ~\cref{part:background} reviews the surrounding literature and identifies the open problems that motivate the residual reinforcement learning approach used in this work. ~\cref{part:method} outlines the experimental design, metrics, and implementation strategy that define the evaluation pipeline. ~\cref{part:results} presents the empirical findings, including ablations, performance breakdowns, and error analyses that contextualize the strengths and limitations of the proposed method. Together, these parts form a coherent arc from motivation to methodology to empirical insight, guiding the reader through the conceptual foundations and practical contributions of the thesis.

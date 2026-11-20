@@ -1,0 +1,12 @@
+\chapter{Conclusion}
+\label{sec:conclusion}
+
+This thesis investigated how residual reinforcement learning can adapt vision–language–action (VLA) foundation policies to real-world manipulation tasks under distribution shift. \Cref{sec:intro,sec:rqs} framed a broader agenda across four research questions but focused this work on \textbf{RQ2}: whether online residual RL can recover or surpass the performance of a frozen VLA backbone within a small budget of physical trials.
+
+\Cref{sec:method} described the experimental setup: a low-cost SO-101 3D-printed arm, a frozen VLA policy as base controller, and residual TD3, SAC, and PPO adapters trained on seven tabletop tasks using the discretized task progress metric and the 5--5--10 evaluation protocol. The results and analysis in the preceding chapters show that residual adapters consistently increase mean progress and out-of-distribution generalization scores relative to both the base policy and RL-only baselines, often converting near-successful rollouts into reliable completions. In effect, the backbone supplies broad visuomotor competence, while the residual head provides the last-mile corrections required for robust deployment.
+
+These findings have two main implications. First, strong pretrained policies combined with lightweight residual RL form a practical recipe for real-world adaptation under strict data budgets, without modifying backbone weights or requiring expensive retraining cycles. Second, they demonstrate that meaningful progress toward adaptive household-scale robotics is possible even on modest hardware, provided that architectures, reward shaping, and evaluation protocols are carefully aligned.
+
+The work also has clear limits: a single robot embodiment, a narrow set of tasks, a small set of residual algorithms, and a controlled lab environment. The remaining research questions in \Cref{sec:rqs} define a natural roadmap. RQ1 calls for benchmarking residual adaptation on top of larger VLA foundations across diverse robots and environments. RQ3 and RQ4 point toward modular controllers and communication protocols that coordinate residual heads, planners, and safety layers at scale. Addressing these questions will require more hardware, data, and collaboration, but the core message of this thesis is simple: residual RL is a viable, sample-efficient way to turn generalist VLA policies into adaptive, task-reliable real robots.
+
+\newpage

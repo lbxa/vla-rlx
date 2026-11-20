@@ -4,7 +4,7 @@ Research code and result analysis for **Real-World Reinforcement Learning for Vi
 
 The research question is whether a learned action-space residual can improve a frozen vision-language-action policy on a low-cost SO-101 arm. The reported study compares a base policy, TD3/SAC/PPO trained without the base, and their residual variants across seven tabletop manipulation tasks using discretized task progress (DTP).
 
-[Project page](https://vla.lbxa.net/) · [Thesis source](https://github.com/lbxa/vla-rlx-manuscript) · [Protocol and evidence status](docs/reproduction-status.md)
+[Project page](https://vla.lbxa.net/) · [Build the manuscript](manuscript/README) · [Submission source](https://github.com/lbxa/vla-rlx-manuscript) · [Protocol and evidence status](docs/reproduction-status.md)
 
 **Reproduction status:** the CPU-only path below recomputes the supplied CSV and figures. Full robot-experiment reproduction is incomplete. The CSV differs from the thesis appendix in **431 of 980 scores**, so these outputs must not be presented as reconciled thesis results. No scores have been changed to resolve this discrepancy.
 

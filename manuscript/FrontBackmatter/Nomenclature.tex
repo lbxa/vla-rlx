@@ -1,0 +1,27 @@
+% Latin symbols
+\nomenclature[1A]{\(\mathcal{A}\)}{set of possible actions}
+\nomenclature[1D]{$D_{\mathrm{KL}}(p\Vert q)$}{Kullback–Leibler divergence between distributions $p$ and $q$}
+\nomenclature[1E]{\(\mathbb{E}[\cdot]\)}{expectation operator}
+\nomenclature[1G]{\(G_t\)}{return at time \(t\), \(G_t=\sum_{k=0}^\infty\gamma^k r_{t+k+1}\)}
+\nomenclature[1H]{\(H(s,\pi)\)}{policy entropy at state \(s\)}
+\nomenclature[1JCLIP]{\(J^{\mathrm{CLIP}}(\theta)\)}{clipped PPO surrogate objective}
+\nomenclature[1JTRPO]{\(J^{\mathrm{TRPO}}(\theta)\)}{surrogate TRPO objective}
+\nomenclature[1P]{\(P(s'\mid s,a)\)}{state transition probability}
+\nomenclature[1Q]{\(Q^\pi(s,a)\)}{action–value function under policy \(\pi\)}
+\nomenclature[1R]{\(R(s,a)\)}{reward distribution for taking action \(a\) in state \(s\)}
+\nomenclature[1S]{\(\mathcal{S}\)}{set of possible states}
+\nomenclature[1V]{\(V^\pi(s)\)}{state–value function under policy \(\pi\)}
+\nomenclature[1rtheta]{\(r(\theta)\)}{probability ratio \(\pi_\theta(a\mid s)/\pi_{\theta_{\mathrm{old}}}(a\mid s)\)}
+\nomenclature[1w]{\(w\)}{critic (value-function) parameters}
+
+% Greek symbols
+\nomenclature[2alpha]{\(\alpha\)}{learning rate}
+\nomenclature[2delta]{\(\delta_t\)}{temporal-difference error at time \(t\)}
+\nomenclature[2epsilon]{\(\varepsilon\)}{exploration rate in \(\varepsilon\)-greedy policy}
+\nomenclature[2gamma]{\(\gamma\)}{discount factor}
+\nomenclature[2theta]{\(\theta\)}{actor (policy) parameters}
+\nomenclature[2tau]{\(\tau\)}{temperature parameter in Boltzmann (softmax) policy}
+
+\cleardoublepage
+\pdfbookmark[0]{\nomname}{nomenclature}
+\printnomenclature[5em]

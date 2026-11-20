@@ -1,0 +1,28 @@
+use File::Path qw(make_path);
+
+@default_files = ('ClassicThesis.tex');
+$jobname = 'main';
+$pdf_mode = 1;
+$pdflatex = 'pdflatex -interaction=nonstopmode -halt-on-error %O %S';
+$out_dir = 'build';
+$warnings_as_errors = 1;  # Report unresolved references after the final pass.
+
+# \include writes a separate .aux file beside each chapter's relative path.
+add_hook('before_xlatex', sub {
+    my %build = @_;
+    make_path("$build{aux_dir1}Chapters", "$build{aux_dir1}FrontBackmatter");
+    return 0;
+});
+
+add_cus_dep('nlo', 'nls', 0, 'make_nomenclature');
+push @generated_exts, 'nlo', 'nls', 'nlg';
+
+sub make_nomenclature {
+    my ($name, $directory) = fileparse($_[0]);
+    # makeindex restricts absolute output paths. Run beside the index input.
+    pushd($directory);
+    my $status = system('makeindex', '-s', 'nomencl.ist', '-o', "$name.nls",
+                        '-t', "$name.nlg", "$name.nlo");
+    popd();
+    return $status;
+}
